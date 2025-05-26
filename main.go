@@ -8,7 +8,7 @@ import (
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
-	// cfg "github.com/spf13/viper"
+	cfg "github.com/spf13/viper"
 	// "github.com/mattn/go-sqlite3"
 )
 
@@ -16,7 +16,7 @@ type model struct {
 	Dim       utils.Dimensions
 	Tabs      []tabs.Tab
 	ActiveTab int
-	Configs   string
+	Profile   *cfg.Viper
 }
 
 func (m model) Init() tea.Cmd {
@@ -49,7 +49,25 @@ func (m model) View() string {
 }
 
 func main() {
-	m := model{}
+	// load main config
+	if err := utils.LoadConfig(); err != nil {
+		fmt.Println("Error loading config:", err)
+		os.Exit(1)
+	}
+	//try to load last profile config
+	var profile utils.Profile = nil
+	if cfg.GetInt("profiles.last_used") > 0 {
+		profilePath := cfg.GetStringSlice("profiles.paths")[cfg.GetInt("profiles.last_used")-1]
+		loadedProfile, err := utils.LoadProfile(profilePath)
+		if err != nil {
+			fmt.Println("Error loading profile:", err)
+			loadedProfile = nil
+		} else {
+			profile = loadedProfile
+		}
+	}
+
+	m := model{Profile: profile}
 	m.Tabs = []tabs.Tab{
 		tabs.BrowserTab{Name: "Browser"},
 	}
