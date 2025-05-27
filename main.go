@@ -9,7 +9,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	cfg "github.com/spf13/viper"
-	// "github.com/mattn/go-sqlite3"
 )
 
 type model struct {
@@ -38,7 +37,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ActiveTab = max(m.ActiveTab-1, 0)
 			return m, nil
 		default:
-			m.Tabs[m.ActiveTab].Update(msg)
+			updated_tab, cmd := m.Tabs[m.ActiveTab].Update(msg)
+			m.Tabs[m.ActiveTab] = updated_tab
+			return m, cmd
 		}
 	}
 	return m, nil
@@ -69,10 +70,12 @@ func main() {
 
 	m := model{Profile: profile}
 	m.Tabs = []tabs.Tab{
+		tabs.ProfileTab{Name: "Profiles", Profiles: utils.LoadProfiles()},
 		tabs.BrowserTab{Name: "Browser"},
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
+
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
