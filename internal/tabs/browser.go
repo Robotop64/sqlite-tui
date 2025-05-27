@@ -14,7 +14,8 @@ import (
 type BrowserTab struct {
 	Name     string
 	Explorer string
-	Table    comp.Table
+	Tree     *lgTree.Tree
+	Table    *comp.Table
 }
 
 const border = 1
@@ -55,7 +56,7 @@ func (b BrowserTab) View(width, height int) string {
 	explorer_height := layout_height - lipgloss.Height(tab.String()) - 2*border
 
 	tree := lgTree.New()
-	loadTree(tree)
+	loadSchema(tree)
 
 	explorer := sidecolumn.
 		Padding(0, 1).
@@ -137,8 +138,6 @@ func (b BrowserTab) View(width, height int) string {
 }
 
 func (b BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
-	// Handle the message and update the BrowserTab state
-	// For now, we just return the BrowserTab unchanged
 	return b, nil
 }
 
@@ -162,8 +161,8 @@ func loadTable(t *lgTable.Table, dims *utils.Dimensions) {
 	dims.Height = len(data)
 }
 
-func loadTree(t *lgTree.Tree) {
-	t.Root("Database").
+func loadSchema(t *lgTree.Tree) {
+	t.Root("DB Schema:").
 		Child("Tables").
 		Child("Users").
 		Child("Products").
