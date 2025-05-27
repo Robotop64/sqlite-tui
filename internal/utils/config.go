@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
+	"path/filepath"
 
 	cfg "github.com/spf13/viper"
 )
@@ -27,7 +27,7 @@ func LoadConfig() error {
 	// 	cfg.AddConfigPath(".")
 	// }
 
-	cfg.SetDefault("profiles.paths", []string{""})
+	cfg.SetDefault("profiles.paths", []string{})
 	cfg.SetDefault("profiles.last_used", 0)
 
 	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
@@ -48,22 +48,22 @@ func LoadConfig() error {
 type Profile = *cfg.Viper
 
 func LoadProfile(path string) (Profile, error) {
+	path = CleanPath(path)
+	if state := CheckPath(path); !state {
+		return nil, fmt.Errorf("profile path does not exist: %s", path)
+	}
+
 	profile := cfg.New()
 
-	temp := strings.Split(path, string(os.PathSeparator))
-	filename := temp[len(temp)-1]
-	profile.SetConfigName(filename)
+	profile.SetConfigName(FileFromPath(path, false))
 	profile.SetConfigType("yaml")
-	profile.AddConfigPath(path)
+	profile.AddConfigPath(filepath.Dir(path))
 
 	profile.SetDefault("profile.name", "PROFILE_NAME")
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
-	profile.SetDefault("scripts.paths", []string{""})
+	profile.SetDefault("scripts.paths", []string{})
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("profile path does not exist: %s", path)
-	}
 	if err := profile.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading profile config: %v", err)
 	}
@@ -71,32 +71,42 @@ func LoadProfile(path string) (Profile, error) {
 	return profile, nil
 }
 
-func GenProfile(path string) Profile {
-	profile := cfg.New()
+func LoadProfiles() []Profile {
+	paths := cfg.GetStringSlice("profiles.paths")
+	profiles := make([]Profile, len(paths))
 
-	temp := strings.Split(path, string(os.PathSeparator))
-	err := os.MkdirAll(strings.Join(temp[:len(temp)-1], string(os.PathSeparator)), os.ModePerm)
-	if err != nil {
-		log.Fatalf("Error creating path to profile config: %v", err)
+	for i, path := range paths {
+		profile, err := LoadProfile(path)
+		if err != nil {
+			profiles[i] = nil
+		} else {
+			profiles[i] = profile
+		}
 	}
 
-	filename := temp[len(temp)-1]
+	return profiles
+}
 
-	profile.SetConfigName(filename)
+func GenProfile(path string) (Profile, error) {
+	path = CleanPath(path)
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("error creating profile directory: %v", err)
+	}
+
+	profile := cfg.New()
+
+	profile.SetConfigName(FileFromPath(path, false))
 	profile.SetConfigType("yaml")
-	profile.AddConfigPath(path)
+	profile.AddConfigPath(filepath.Dir(path))
 
 	profile.SetDefault("profile.name", "PROFILE_NAME")
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
 	profile.SetDefault("scripts.paths", []string{""})
 
-	//check path and write config if the path does exist
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := profile.SafeWriteConfig(); err != nil {
-			log.Fatalf("Error writing profile config: %v", err)
-		}
+	if err := profile.SafeWriteConfig(); err != nil {
+		return nil, fmt.Errorf("error writing profile config: %v", err)
 	}
 
-	return profile
+	return profile, nil
 }
