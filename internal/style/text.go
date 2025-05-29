@@ -17,3 +17,7 @@ var Title = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("205")).
 	Underline(true)
+
+var Button = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("205")).
+	Background(lipgloss.Color("#444444"))
