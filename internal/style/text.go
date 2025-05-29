@@ -12,3 +12,8 @@ var Selected = lipgloss.NewStyle().
 	Bold(false).
 	Foreground(lipgloss.Color("63")).
 	Background(lipgloss.Color("20"))
+
+var Title = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("205")).
+	Underline(true)
