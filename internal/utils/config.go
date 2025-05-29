@@ -63,6 +63,7 @@ func LoadProfile(path string) (Profile, error) {
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
 	profile.SetDefault("scripts.paths", []string{})
+	profile.SetDefault("note", "")
 
 	if err := profile.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading profile config: %v", err)
@@ -103,6 +104,7 @@ func GenProfile(path string) (Profile, error) {
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
 	profile.SetDefault("scripts.paths", []string{""})
+	profile.SetDefault("note", "")
 
 	if err := profile.SafeWriteConfig(); err != nil {
 		return nil, fmt.Errorf("error writing profile config: %v", err)

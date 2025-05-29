@@ -70,7 +70,7 @@ func main() {
 
 	m := model{Profile: profile}
 	m.Tabs = []tabs.Tab{
-		tabs.ProfileTab{Name: "Profiles", Profiles: utils.LoadProfiles()},
+		tabs.ProfileTab{Name: "Profiles", Profiles: utils.LoadProfiles()}.PostInit(),
 		tabs.BrowserTab{Name: "Browser"},
 	}
 
