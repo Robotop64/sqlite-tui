@@ -30,6 +30,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "ctrl+s":
+			cfg.WriteConfig()
+			return m, nil
 		case "alt+right":
 			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
 			return m, nil
@@ -57,8 +60,9 @@ func main() {
 	}
 	//try to load last profile config
 	var profile utils.Profile = nil
-	if cfg.GetInt("profiles.last_used") > 0 {
-		profilePath := cfg.GetStringSlice("profiles.paths")[cfg.GetInt("profiles.last_used")-1]
+	last_used := cfg.GetInt("profiles.last_used")
+	if last_used > 0 {
+		profilePath := cfg.GetStringSlice("profiles.paths")[last_used-1]
 		loadedProfile, err := utils.LoadProfile(profilePath)
 		if err != nil {
 			fmt.Println("Error loading profile:", err)
