@@ -20,6 +20,10 @@ type BrowserTab struct {
 
 const border = 1
 
+func (b BrowserTab) Init() tea.Cmd {
+	return nil
+}
+
 func (b BrowserTab) GetName() string {
 	return b.Name
 }
