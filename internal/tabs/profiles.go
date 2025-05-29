@@ -2,6 +2,8 @@ package tabs
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
@@ -11,23 +13,29 @@ import (
 	lipgloss "github.com/charmbracelet/lipgloss"
 	lgList "github.com/charmbracelet/lipgloss/list"
 	lgTree "github.com/charmbracelet/lipgloss/tree"
+	cfg "github.com/spf13/viper"
 )
 
 type ProfileTab struct {
 	Name                 string
 	Profiles             []utils.Profile
+	IdxFocus             int
 	IdxSelected          int
 	AddProfile           bool
 	AddProfile_textInput bubTxtIn.Model
 }
+
+var profile_popup_width = 40
 
 func (b ProfileTab) PostInit() ProfileTab {
 	ti := bubTxtIn.New()
 	ti.Placeholder = "Enter profile path..."
 	ti.Focus()
 	ti.CharLimit = 100
-	ti.Width = 30
+	ti.Width = profile_popup_width
 	b.AddProfile_textInput = ti
+
+	b.IdxSelected = cfg.GetInt("profiles.last_used")
 	return b
 }
 
@@ -71,13 +79,13 @@ func (b ProfileTab) View(width, height int) string {
 	explorer_height := layout_height - lipgloss.Height(tab.String()) - 2*border
 
 	tree := lgTree.New()
-	loadProfiles(tree, &b.Profiles)
+	loadProfiles(tree, &b.Profiles, b.IdxSelected)
 	tree.ItemStyleFunc(func(_ lgTree.Children, i int) lipgloss.Style {
 		if len(b.Profiles) == 0 {
 			return style.Normal
 		}
 
-		if i == b.IdxSelected {
+		if i == b.IdxFocus {
 			return style.Selected
 		}
 		return style.Normal
@@ -98,24 +106,32 @@ func (b ProfileTab) View(width, height int) string {
 	//=Hints===================
 	hints = lipgloss.JoinHorizontal(
 		lipgloss.Top,
+		"quit:\nctrl+c|q",
+		"│\n│",
+		"save:\nctrl+s",
+		"│\n│",
 		"tabs:\nalt+(</>)",
 		"│\n│",
-		"quit:\nctrl+c, q",
-		"│\n│",
 		"profiles:\n   ↑/↓",
+		"│\n│",
+		"add:\n +",
+		"│\n│",
+		"remove:\n   -",
+		"│\n│",
 	)
 	//=========================
 	//=Content Column==========
 	temp_content := maincolumn
 
-	if b.Profiles[b.IdxSelected] != nil {
+	if b.IdxFocus >= 0 && b.IdxFocus < len(b.Profiles) && b.Profiles[b.IdxFocus] != nil {
 		title := style.Title.SetString("Profile Properties:").Render()
 		list := lgList.New(
-			fmt.Sprintf("Name: %s", b.Profiles[b.IdxSelected].GetString("profile.name")),
+			fmt.Sprintf("Name: %s", b.Profiles[b.IdxFocus].GetString("profile.name")),
+			fmt.Sprintf("Path: %s", b.Profiles[b.IdxFocus].GetString("profile.path")),
 			"Database:",
 			lgList.New(
-				fmt.Sprintf("Path: %s", b.Profiles[b.IdxSelected].GetString("database.path")),
-				fmt.Sprintf("Type: %s", b.Profiles[b.IdxSelected].GetString("database.type")),
+				fmt.Sprintf("Path: %s", b.Profiles[b.IdxFocus].GetString("database.path")),
+				fmt.Sprintf("Type: %s", b.Profiles[b.IdxFocus].GetString("database.type")),
 			),
 		).String()
 		temp_content = temp_content.
@@ -169,6 +185,41 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				b.AddProfile = false
+				b.AddProfile_textInput.Reset()
+				return b, nil
+			case "enter":
+				raw_path := b.AddProfile_textInput.Value()
+				var path string
+				if !utils.EndsWith(raw_path, "Profile.yaml") {
+					path = filepath.Join(raw_path, "Profile.yaml")
+				} else {
+					path = raw_path
+				}
+
+				fileExists := utils.CheckPath(path)
+				var prof utils.Profile
+				var err error
+				if !fileExists {
+					if prof, err = utils.GenProfile(b.AddProfile_textInput.Value()); err != nil {
+						b.AddProfile = false
+						b.AddProfile_textInput.Reset()
+						return b, nil
+					}
+				} else {
+					if prof, err = utils.LoadProfile(path); err != nil {
+						b.AddProfile = false
+						b.AddProfile_textInput.Reset()
+						return b, nil
+					}
+				}
+				prof.Set("profile.path", path)
+				b.Profiles = append(b.Profiles, prof)
+				paths := cfg.GetStringSlice("profiles.paths")
+				paths = append(paths, path)
+				cfg.Set("profiles.paths", paths)
+
+				b.AddProfile = false
+				b.AddProfile_textInput.Reset()
 				return b, nil
 			}
 			b.AddProfile_textInput, cmd = b.AddProfile_textInput.Update(msg)
@@ -176,13 +227,31 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		case false:
 			switch msg.String() {
 			case "up":
-				b.IdxSelected = max(b.IdxSelected-1, 0)
+				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "down":
-				b.IdxSelected = min(b.IdxSelected+1, len(b.Profiles)-1)
+				b.IdxFocus = min(b.IdxFocus+1, len(b.Profiles)-1)
 				return b, nil
 			case "+":
 				b.AddProfile = true
+				return b, nil
+			case "-":
+				if len(b.Profiles) > 0 && b.IdxFocus < len(b.Profiles) {
+					b.Profiles = append(b.Profiles[:b.IdxFocus], b.Profiles[b.IdxFocus+1:]...)
+					paths := cfg.GetStringSlice("profiles.paths")
+					paths = append(paths[:b.IdxFocus], paths[b.IdxFocus+1:]...)
+					cfg.Set("profiles.paths", paths)
+				}
+				b.IdxFocus = max(b.IdxFocus-1, 0)
+				return b, nil
+			case "enter":
+				cfg.Set("profiles.last_used", b.IdxFocus)
+				b.IdxSelected = b.IdxFocus
+				return b, nil
+			case "c":
+				if len(b.Profiles) > 0 && b.IdxFocus < len(b.Profiles) {
+
+				}
 				return b, nil
 			default:
 				return b, nil
@@ -192,12 +261,16 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	return b, nil
 }
 
-func loadProfiles(t *lgTree.Tree, profiles *[]utils.Profile) {
+func loadProfiles(t *lgTree.Tree, profiles *[]utils.Profile, idxSel int) {
 	for i, profile := range *profiles {
 		if profile == nil {
 			t.Child(fmt.Sprintf("Faulty Profile!\n@Position %d", i+1))
 		} else {
-			t.Child(profile.GetString("profile.name"))
+			if i == idxSel {
+				t.Child(">" + profile.GetString("profile.name") + "<")
+			} else {
+				t.Child(profile.GetString("profile.name"))
+			}
 		}
 	}
 
@@ -210,13 +283,41 @@ func addProfilePrompt(b ProfileTab) lipgloss.Style {
 	title := style.Title.SetString("Add Profile:").Render()
 	msg := style.Normal.SetString("Enter the path to the profile file:\n").Render()
 
+	label_cancel, key_cancel := " Cancel ", "esc"
+	label_confirm, key_confirm := " Confirm ", "enter"
+
+	button_cancel := style.Button.SetString(label_cancel).Render() + "\n" +
+		style.Normal.SetString(fmt.Sprintf(" (%s)", key_cancel)).Render()
+	button_confirm := style.Button.SetString(label_confirm).Render() + "\n" +
+		style.Normal.SetString(fmt.Sprintf(" (%s)", key_confirm)).Render()
+
+	buffer_length := profile_popup_width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
+
+	hints := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		button_cancel,
+		strings.Repeat(" ", buffer_length),
+		button_confirm,
+	)
+
+	// hints := lipgloss.PlaceHorizontal(
+	// 	profile_popup_width-2,
+	// 	lipgloss.Right,
+	// 	button_confirm,
+	// )
+	// hints = button_cancel //+ ansi.Cut(hints, ansi.StringWidth(button_cancel), ansi.StringWidth(hints))
+
 	return style.Box.
+		Padding(0, 1).
+		Width(profile_popup_width).
 		SetString(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				title,
 				msg,
 				b.AddProfile_textInput.View(),
+				"",
+				hints,
 			),
 		)
 }
