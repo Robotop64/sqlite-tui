@@ -60,6 +60,7 @@ func LoadProfile(path string) (Profile, error) {
 	profile.AddConfigPath(filepath.Dir(path))
 
 	profile.SetDefault("profile.name", "PROFILE_NAME")
+	profile.SetDefault("profile.path", "PATH")
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
 	profile.SetDefault("scripts.paths", []string{})
@@ -96,11 +97,12 @@ func GenProfile(path string) (Profile, error) {
 
 	profile := cfg.New()
 
-	profile.SetConfigName(FileFromPath(path, false))
+	profile.SetConfigName("Profile")
 	profile.SetConfigType("yaml")
-	profile.AddConfigPath(filepath.Dir(path))
+	profile.AddConfigPath(path)
 
-	profile.SetDefault("profile.name", "PROFILE_NAME")
+	profile.SetDefault("profile.name", "New Profile")
+	profile.SetDefault("profile.path", "PATH")
 	profile.SetDefault("database.path", "DATABASE_PATH")
 	profile.SetDefault("database.type", "sqlite")
 	profile.SetDefault("scripts.paths", []string{""})
