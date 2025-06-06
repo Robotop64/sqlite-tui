@@ -70,6 +70,8 @@ func LoadProfile(path string) (Profile, error) {
 		return nil, fmt.Errorf("error reading profile config: %v", err)
 	}
 
+	profile.Set("profile.path", path)
+
 	return profile, nil
 }
 
