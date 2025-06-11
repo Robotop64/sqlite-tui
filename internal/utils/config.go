@@ -5,32 +5,39 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	cfg "github.com/spf13/viper"
 )
+
+const BIN_NAME = "sqlite-tui"
 
 func LoadConfig() error {
 	cfg.SetConfigName("config")
 	cfg.SetConfigType("yaml")
 
-	cfg.AddConfigPath(".")
+	var configDirPrefix string
 
-	// switch os.Getenv("OS") {
-	// case "windows":
-	// 	cfg.AddConfigPath("C:\\ProgramData\\MyApp")
-	// case "linux":
-	// 	cfg.AddConfigPath("/etc/myapp")
+	switch runtime.GOOS {
+	case "windows":
+		configDirPrefix = os.Getenv("LOCALAPPDATA")
+	case "linux":
+		configDirPrefix = "~/.config"
 	// case "darwin":
 	// 	cfg.AddConfigPath("/usr/local/etc/myapp")
-	// default:
-	// 	fmt.Println("Unsupported OS, using current directory for config.")
-	// 	cfg.AddConfigPath(".")
-	// }
+	default:
+		log.Fatalf("Unsupported OS: %s", os.Getenv("OS"))
+	}
+	configDir := filepath.Join(configDirPrefix, BIN_NAME)
+	os.MkdirAll(configDir, os.ModePerm)
+	configLocation := filepath.Join(configDir, "config.yaml")
+
+	cfg.AddConfigPath(configDir)
 
 	cfg.SetDefault("profiles.paths", []string{})
 	cfg.SetDefault("profiles.last_used", 0)
 
-	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
+	if _, err := os.Stat(configLocation); os.IsNotExist(err) {
 		fmt.Println("Config file not found. \nCreating default.")
 
 		if err := cfg.SafeWriteConfig(); err != nil {
@@ -47,24 +54,30 @@ func LoadConfig() error {
 
 type Profile = *cfg.Viper
 
+func GenProfile() Profile {
+	profile := cfg.New()
+
+	profile.SetConfigName("Profile")
+	profile.SetConfigType("yaml")
+
+	profile.SetDefault("profile.name", "New Profile")
+	profile.SetDefault("database.paths", []string{})
+	profile.SetDefault("scripts.paths", []string{})
+	profile.SetDefault("note", "")
+
+	return profile
+}
+
 func LoadProfile(path string) (Profile, error) {
 	path = CleanPath(path)
 	if state := CheckPath(path); !state {
 		return nil, fmt.Errorf("profile path does not exist: %s", path)
 	}
 
-	profile := cfg.New()
+	profile := GenProfile()
 
 	profile.SetConfigName(FileFromPath(path, false))
-	profile.SetConfigType("yaml")
 	profile.AddConfigPath(filepath.Dir(path))
-
-	profile.SetDefault("profile.name", "PROFILE_NAME")
-	profile.SetDefault("profile.path", "PATH")
-	profile.SetDefault("database.path", "DATABASE_PATH")
-	profile.SetDefault("database.type", "sqlite")
-	profile.SetDefault("scripts.paths", []string{})
-	profile.SetDefault("note", "")
 
 	if err := profile.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading profile config: %v", err)
@@ -91,28 +104,21 @@ func LoadProfiles() []Profile {
 	return profiles
 }
 
-func GenProfile(path string) (Profile, error) {
+func CreateProfile(path string) (Profile, error) {
+	profile := GenProfile()
+
 	path = CleanPath(path)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("error creating profile directory: %v", err)
 	}
 
-	profile := cfg.New()
-
-	profile.SetConfigName("Profile")
-	profile.SetConfigType("yaml")
 	profile.AddConfigPath(path)
-
-	profile.SetDefault("profile.name", "New Profile")
-	profile.SetDefault("profile.path", "PATH")
-	profile.SetDefault("database.path", "DATABASE_PATH")
-	profile.SetDefault("database.type", "sqlite")
-	profile.SetDefault("scripts.paths", []string{""})
-	profile.SetDefault("note", "")
 
 	if err := profile.SafeWriteConfig(); err != nil {
 		return nil, fmt.Errorf("error writing profile config: %v", err)
 	}
+
+	profile.Set("profile.path", path)
 
 	return profile, nil
 }
