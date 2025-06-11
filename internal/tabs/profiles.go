@@ -25,14 +25,12 @@ type ProfileTab struct {
 	AddProfile_textInput bubTxtIn.Model
 }
 
-var profile_popup_width = 40
-
 func (b ProfileTab) PostInit() ProfileTab {
 	ti := bubTxtIn.New()
 	ti.Placeholder = "Enter profile path..."
 	ti.Focus()
-	ti.CharLimit = 100
-	ti.Width = profile_popup_width
+	ti.CharLimit = 256
+	ti.Width = 40
 	b.AddProfile_textInput = ti
 
 	b.IdxSelected = cfg.GetInt("profiles.last_used")
@@ -178,8 +176,11 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.WindowSizeMsg:
+		width := msg.Width
+		b.AddProfile_textInput.Width = width * 3 / 5
 
+	case tea.KeyMsg:
 		switch b.AddProfile {
 		case true:
 			switch msg.String() {
@@ -200,7 +201,7 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				var prof utils.Profile
 				var err error
 				if !fileExists {
-					if prof, err = utils.GenProfile(b.AddProfile_textInput.Value()); err != nil {
+					if prof, err = utils.CreateProfile(b.AddProfile_textInput.Value()); err != nil {
 						b.AddProfile = false
 						b.AddProfile_textInput.Reset()
 						return b, nil
@@ -212,7 +213,7 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 						return b, nil
 					}
 				}
-				prof.Set("profile.path", path)
+				// prof.Set("profile.path", path)
 				b.Profiles = append(b.Profiles, prof)
 				paths := cfg.GetStringSlice("profiles.paths")
 				paths = append(paths, path)
@@ -281,7 +282,7 @@ func loadProfiles(t *lgTree.Tree, profiles *[]utils.Profile, idxSel int) {
 
 func addProfilePrompt(b ProfileTab) lipgloss.Style {
 	title := style.Title.SetString("Add Profile:").Render()
-	msg := style.Normal.SetString("Enter the path to the profile file:\n").Render()
+	msg := style.Normal.SetString("Enter the path to the profile file or directory:\n").Render()
 
 	label_cancel, key_cancel := " Cancel ", "esc"
 	label_confirm, key_confirm := " Confirm ", "enter"
@@ -291,7 +292,7 @@ func addProfilePrompt(b ProfileTab) lipgloss.Style {
 	button_confirm := style.Button.SetString(label_confirm).Render() + "\n" +
 		style.Normal.SetString(fmt.Sprintf(" (%s)", key_confirm)).Render()
 
-	buffer_length := profile_popup_width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
+	buffer_length := b.AddProfile_textInput.Width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
 
 	hints := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -309,7 +310,7 @@ func addProfilePrompt(b ProfileTab) lipgloss.Style {
 
 	return style.Box.
 		Padding(0, 1).
-		Width(profile_popup_width).
+		Width(b.AddProfile_textInput.Width).
 		SetString(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
