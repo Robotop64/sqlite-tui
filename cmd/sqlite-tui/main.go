@@ -26,6 +26,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.Dim = utils.Dimensions{Width: msg.Width, Height: msg.Height}
+		updated_tab, cmd := m.Tabs[m.ActiveTab].Update(msg)
+		m.Tabs[m.ActiveTab] = updated_tab
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
