@@ -5,40 +5,58 @@ import (
 	"path/filepath"
 	"strings"
 
+	Focus "github.com/Robotop64/sqlite-tui/internal/enums/ui"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
+	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
+	yaml "gopkg.in/yaml.v3"
 
+	bubTxtEdit "github.com/charmbracelet/bubbles/textarea"
 	bubTxtIn "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
-	lgList "github.com/charmbracelet/lipgloss/list"
 	lgTree "github.com/charmbracelet/lipgloss/tree"
 	cfg "github.com/spf13/viper"
 )
 
 type ProfileTab struct {
-	Name                 string
-	Profiles             []utils.Profile
-	IdxFocus             int
-	IdxSelected          int
-	AddProfile           bool
-	AddProfile_textInput bubTxtIn.Model
+	Name        string
+	ElemFocus   Focus.UiFocus
+	ChangeFocus bool
+
+	IdxFocus    int
+	IdxSelected int
+
+	AddProfile  bubTxtIn.Model
+	ViewProfile bubTxtEdit.Model
 }
 
 func (b ProfileTab) PostInit() ProfileTab {
-	ti := bubTxtIn.New()
-	ti.Placeholder = "Enter profile path..."
-	ti.Focus()
-	ti.CharLimit = 256
-	ti.Width = 40
-	b.AddProfile_textInput = ti
+	b.IdxSelected = utils.Configs.Profiles.LastUsed
 
-	b.IdxSelected = cfg.GetInt("profiles.last_used")
+	txtinput := bubTxtIn.New()
+	txtinput.Placeholder = "Enter profile path..."
+	txtinput.CharLimit = 256
+	b.AddProfile = txtinput
+
+	txtedit := bubTxtEdit.New()
+	b.ViewProfile = txtedit
+	profile := utils.ActiveProfile()
+	data, _ := yaml.Marshal(profile)
+	b.ViewProfile.SetValue(string(data))
+
 	return b
 }
 
 func (b ProfileTab) Init() tea.Cmd {
-	return bubTxtIn.Blink
+	if b.ElemFocus == Focus.TxtInput {
+		return bubTxtEdit.Blink
+	}
+	if b.ElemFocus == Focus.TxtInput {
+		return bubTxtIn.Blink
+	}
+
+	return nil
 }
 
 func (b ProfileTab) GetName() string {
@@ -47,16 +65,28 @@ func (b ProfileTab) GetName() string {
 
 func (b ProfileTab) View(width, height int) string {
 	hint_height := 2
-	sidecolumn_width := width / 5
-	maincolumn_width := width - sidecolumn_width
-	layout_height := height - hint_height
+
+	popup_size := utils.Dimensions{
+		Width:  width * 3 / 5,
+		Height: 0,
+	}
+
+	explorer_size := utils.Dimensions{
+		Width:  width / 5,
+		Height: height - hint_height,
+	}
+
+	content_size := utils.Dimensions{
+		Width:  width - explorer_size.Width,
+		Height: height - hint_height,
+	}
 
 	sidecolumn := style.Box.
-		Width(sidecolumn_width - 2*border).
-		Height(layout_height - 2*border)
-	maincolumn := style.Box.
-		Width(maincolumn_width - 2*border).
-		Height(layout_height - 2*border)
+		Width(explorer_size.Width - 2*border).
+		Height(explorer_size.Height - 2*border)
+	// maincolumn := style.Box.
+	// 	Width(content_size.Width - 2*border).
+	// 	Height(content_size.Height - 2*border)
 
 	tab := sidecolumn.
 		Height(1).
@@ -64,22 +94,22 @@ func (b ProfileTab) View(width, height int) string {
 			"⏴",
 			lipgloss.PlaceHorizontal(lipgloss.Width(sidecolumn.String())-6, lipgloss.Center, b.Name),
 			"⏵",
-		)
+		).
+		Foreground(color.TextHighlight)
 
 	var (
 		sidebar,
-		content,
 		hints string
 	)
 
 	//=Side Column=============
 	//-Explorer----------------
-	explorer_height := layout_height - lipgloss.Height(tab.String()) - 2*border
+	explorer_height := explorer_size.Height - lipgloss.Height(tab.String()) - 2*border
 
 	tree := lgTree.New()
-	loadProfiles(tree, &b.Profiles, b.IdxSelected)
+	loadProfiles(tree, b.IdxSelected)
 	tree.ItemStyleFunc(func(_ lgTree.Children, i int) lipgloss.Style {
-		if len(b.Profiles) == 0 {
+		if len(utils.Profiles) == 0 {
 			return style.Normal
 		}
 
@@ -94,6 +124,10 @@ func (b ProfileTab) View(width, height int) string {
 		Height(explorer_height)
 
 	explorer = explorer.SetString(tree.String())
+
+	if b.ElemFocus == Focus.ProfileList {
+		explorer = explorer.BorderForeground(color.BoxSelected)
+	}
 	//-------------------------
 	sidebar = lipgloss.JoinVertical(
 		lipgloss.Top,
@@ -119,32 +153,7 @@ func (b ProfileTab) View(width, height int) string {
 	)
 	//=========================
 	//=Content Column==========
-	temp_content := maincolumn
 
-	if b.IdxFocus >= 0 && b.IdxFocus < len(b.Profiles) && b.Profiles[b.IdxFocus] != nil {
-		title := style.Title.SetString("Profile Properties:").Render()
-		list := lgList.New(
-			fmt.Sprintf("Name: %s", b.Profiles[b.IdxFocus].GetString("profile.name")),
-			fmt.Sprintf("Path: %s", b.Profiles[b.IdxFocus].GetString("profile.path")),
-			"Database:",
-			lgList.New(
-				fmt.Sprintf("Path: %s", b.Profiles[b.IdxFocus].GetString("database.path")),
-				fmt.Sprintf("Type: %s", b.Profiles[b.IdxFocus].GetString("database.type")),
-			),
-		).String()
-		temp_content = temp_content.
-			Padding(0, 1).
-			SetString(
-				lipgloss.JoinVertical(
-					lipgloss.Top,
-					title,
-					list,
-				),
-			)
-	}
-
-	content = temp_content.
-		Render()
 	//=========================
 
 	layout := lipgloss.JoinVertical(
@@ -152,17 +161,17 @@ func (b ProfileTab) View(width, height int) string {
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			sidebar,
-			content,
+			viewProfile(b, content_size).Render(),
 		),
 		hints,
 	)
 
-	if !b.AddProfile {
+	if !(b.ElemFocus == Focus.TxtInput) {
 		return layout
 	} else {
 		overlay, err := utils.Overlay(
 			layout,
-			addProfilePrompt(b).Render(),
+			addProfilePrompt(b, popup_size).Render(),
 			utils.Center, utils.Center,
 		)
 		if err != nil {
@@ -174,22 +183,72 @@ func (b ProfileTab) View(width, height int) string {
 
 func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		width := msg.Width
-		b.AddProfile_textInput.Width = width * 3 / 5
-
 	case tea.KeyMsg:
-		switch b.AddProfile {
-		case true:
+		switch msg.String() {
+		case "alt+left":
+			b.ElemFocus = Focus.ProfileList
+			b.ViewProfile.Blur()
+			return b, nil
+		case "alt+right":
+			b.ElemFocus = Focus.TxtEdit
+			return b, nil
+		}
+
+		switch b.ElemFocus {
+		case Focus.None:
+			return b, nil
+		case Focus.ProfileList:
 			switch msg.String() {
-			case "esc":
-				b.AddProfile = false
-				b.AddProfile_textInput.Reset()
+			case "up":
+				b.IdxFocus = max(b.IdxFocus-1, 0)
+				return b, nil
+			case "down":
+				b.IdxFocus = min(b.IdxFocus+1, len(utils.Profiles)-1)
+				return b, nil
+			case "+":
+				b.ElemFocus = Focus.TxtInput
+				return b, nil
+			case "-":
+				if len(utils.Profiles) > 0 && b.IdxFocus < len(utils.Profiles) {
+					utils.Profiles = append(utils.Profiles[:b.IdxFocus], utils.Profiles[b.IdxFocus+1:]...)
+					paths := cfg.GetStringSlice("profiles.paths")
+					paths = append(paths[:b.IdxFocus], paths[b.IdxFocus+1:]...)
+					cfg.Set("profiles.paths", paths)
+				}
+				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
-				raw_path := b.AddProfile_textInput.Value()
+				utils.Configs.Profiles.LastUsed = b.IdxFocus
+				b.IdxSelected = b.IdxFocus
+				profile := utils.ActiveProfile()
+				data, _ := yaml.Marshal(profile)
+				b.ViewProfile.SetValue(string(data))
+				return b, nil
+			case "c":
+				if len(utils.Profiles) > 0 && b.IdxFocus < len(utils.Profiles) {
+
+				}
+				return b, nil
+			default:
+				return b, nil
+			}
+		case Focus.TxtInput:
+			b.AddProfile.Focus()
+			switch msg.String() {
+			case "esc":
+				b.ElemFocus = Focus.ProfileList
+				b.AddProfile.Reset()
+				return b, nil
+			case "enter":
+				raw_path := b.AddProfile.Value()
+				if raw_path == "" {
+					b.ElemFocus = Focus.ProfileList
+					return b, nil
+				}
+
 				var path string
 				if !utils.EndsWith(raw_path, "Profile.yaml") {
 					path = filepath.Join(raw_path, "Profile.yaml")
@@ -198,89 +257,78 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				}
 
 				fileExists := utils.CheckPath(path)
-				var prof utils.Profile
 				var err error
 				if !fileExists {
-					if prof, err = utils.CreateProfile(b.AddProfile_textInput.Value()); err != nil {
-						b.AddProfile = false
-						b.AddProfile_textInput.Reset()
+					if _, err = utils.CreateProfile(b.AddProfile.Value()); err != nil {
+						b.ElemFocus = Focus.ProfileList
+						b.AddProfile.Reset()
 						return b, nil
 					}
 				} else {
-					if prof, err = utils.LoadProfile(path); err != nil {
-						b.AddProfile = false
-						b.AddProfile_textInput.Reset()
+					if _, err = utils.LoadProfile(path); err != nil {
+						b.ElemFocus = Focus.ProfileList
+						b.AddProfile.Reset()
 						return b, nil
 					}
 				}
-				// prof.Set("profile.path", path)
-				b.Profiles = append(b.Profiles, prof)
-				paths := cfg.GetStringSlice("profiles.paths")
-				paths = append(paths, path)
-				cfg.Set("profiles.paths", paths)
 
-				b.AddProfile = false
-				b.AddProfile_textInput.Reset()
+				b.ElemFocus = Focus.ProfileList
+				b.AddProfile.Reset()
 				return b, nil
 			}
-			b.AddProfile_textInput, cmd = b.AddProfile_textInput.Update(msg)
+			b.AddProfile, cmd = b.AddProfile.Update(msg)
 			return b, cmd
-		case false:
+		case Focus.TxtEdit:
 			switch msg.String() {
-			case "up":
-				b.IdxFocus = max(b.IdxFocus-1, 0)
-				return b, nil
-			case "down":
-				b.IdxFocus = min(b.IdxFocus+1, len(b.Profiles)-1)
-				return b, nil
-			case "+":
-				b.AddProfile = true
-				return b, nil
-			case "-":
-				if len(b.Profiles) > 0 && b.IdxFocus < len(b.Profiles) {
-					b.Profiles = append(b.Profiles[:b.IdxFocus], b.Profiles[b.IdxFocus+1:]...)
-					paths := cfg.GetStringSlice("profiles.paths")
-					paths = append(paths[:b.IdxFocus], paths[b.IdxFocus+1:]...)
-					cfg.Set("profiles.paths", paths)
-				}
-				b.IdxFocus = max(b.IdxFocus-1, 0)
-				return b, nil
-			case "enter":
-				cfg.Set("profiles.last_used", b.IdxFocus)
-				b.IdxSelected = b.IdxFocus
-				return b, nil
-			case "c":
-				if len(b.Profiles) > 0 && b.IdxFocus < len(b.Profiles) {
+			case "ctrl+s":
+				data := b.ViewProfile.Value()
+				if !(len(data) == 0) {
+					profile := utils.ActiveProfile()
 
+					if err := yaml.Unmarshal([]byte(data), profile); err != nil {
+						fmt.Println("Error unmarshalling profile data:", err)
+						return b, nil
+					}
+					if err := utils.SaveProfile(profile, profile.Path); err != nil {
+						fmt.Println("Error saving profile:", err)
+						return b, nil
+					}
 				}
 				return b, nil
 			default:
-				return b, nil
+				if !b.ViewProfile.Focused() {
+					cmd = b.ViewProfile.Focus()
+					cmds = append(cmds, cmd)
+				}
 			}
+
+			b.ViewProfile, cmd = b.ViewProfile.Update(msg)
+			cmds = append(cmds, cmd)
+			return b, tea.Batch(cmds...)
 		}
 	}
 	return b, nil
 }
 
-func loadProfiles(t *lgTree.Tree, profiles *[]utils.Profile, idxSel int) {
-	for i, profile := range *profiles {
+func loadProfiles(t *lgTree.Tree, idxSel int) {
+	for i, profile := range utils.Profiles {
 		if profile == nil {
 			t.Child(fmt.Sprintf("Faulty Profile!\n@Position %d", i+1))
 		} else {
 			if i == idxSel {
-				t.Child(">" + profile.GetString("profile.name") + "<")
+				t.Child(">" + profile.Name + "<")
 			} else {
-				t.Child(profile.GetString("profile.name"))
+				t.Child(profile.Name)
 			}
 		}
 	}
 
-	if len(*profiles) == 0 {
+	if len(utils.Profiles) == 0 {
 		t.Child("...")
 	}
 }
 
-func addProfilePrompt(b ProfileTab) lipgloss.Style {
+func addProfilePrompt(b ProfileTab, dim utils.Dimensions) lipgloss.Style {
 	title := style.Title.SetString("Add Profile:").Render()
 	msg := style.Normal.SetString("Enter the path to the profile file or directory:\n").Render()
 
@@ -292,7 +340,7 @@ func addProfilePrompt(b ProfileTab) lipgloss.Style {
 	button_confirm := style.Button.SetString(label_confirm).Render() + "\n" +
 		style.Normal.SetString(fmt.Sprintf(" (%s)", key_confirm)).Render()
 
-	buffer_length := b.AddProfile_textInput.Width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
+	buffer_length := dim.Width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
 
 	hints := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -301,24 +349,50 @@ func addProfilePrompt(b ProfileTab) lipgloss.Style {
 		button_confirm,
 	)
 
-	// hints := lipgloss.PlaceHorizontal(
-	// 	profile_popup_width-2,
-	// 	lipgloss.Right,
-	// 	button_confirm,
-	// )
-	// hints = button_cancel //+ ansi.Cut(hints, ansi.StringWidth(button_cancel), ansi.StringWidth(hints))
+	dim.Width = dim.Width - 2
 
-	return style.Box.
+	popup := style.Box.
 		Padding(0, 1).
-		Width(b.AddProfile_textInput.Width).
+		Width(dim.Width).
 		SetString(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				title,
 				msg,
-				b.AddProfile_textInput.View(),
+				b.AddProfile.View(),
 				"",
 				hints,
 			),
 		)
+
+	if b.ElemFocus == Focus.TxtInput {
+		popup = popup.BorderForeground(color.BoxSelected)
+	}
+
+	return popup
+}
+
+func viewProfile(b ProfileTab, dims utils.Dimensions) lipgloss.Style {
+	b.ViewProfile.SetWidth(dims.Width - 2)
+	b.ViewProfile.SetHeight(dims.Height - 3)
+
+	b.ViewProfile.Prompt = ""
+
+	view := style.Box.
+		Padding(0, 1).
+		Width(dims.Width - 2).
+		Height(dims.Height - 2).
+		SetString(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				style.Title.SetString("Viewer/Editor:").Render(),
+				b.ViewProfile.View(),
+			),
+		)
+
+	if b.ElemFocus == Focus.TxtEdit {
+		view = view.BorderForeground(color.BoxSelected)
+	}
+
+	return view
 }
