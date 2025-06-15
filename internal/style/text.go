@@ -1,21 +1,22 @@
 package style
 
 import (
+	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var Normal = lipgloss.NewStyle().
 	Bold(false).
-	Foreground(lipgloss.Color("205"))
+	Foreground(color.TextUnselected)
 
 var Selected = lipgloss.NewStyle().
 	Bold(false).
-	Foreground(lipgloss.Color("63")).
+	Foreground(color.TextSelected).
 	Background(lipgloss.Color("20"))
 
 var Title = lipgloss.NewStyle().
 	Bold(true).
-	Foreground(lipgloss.Color("205")).
+	Foreground(color.TextHighlight).
 	Underline(true)
 
 var Button = lipgloss.NewStyle().
