@@ -1,11 +1,12 @@
 package style
 
 import (
+	"github.com/Robotop64/sqlite-tui/internal/style/color"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var Box lipgloss.Style = lipgloss.NewStyle().
 	Bold(true).
-	Foreground(lipgloss.Color("205")).
+	Foreground(color.TextUnselected).
 	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("63"))
+	BorderForeground(color.BoxUnselected)
