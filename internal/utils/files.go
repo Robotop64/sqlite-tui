@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 func CleanPath(path string) string {
@@ -28,4 +30,23 @@ func FileFromPath(path string, extension bool) string {
 	}
 
 	return filename
+}
+
+func SaveYamlFile(path string, data interface{}) error {
+	path = CleanPath(path)
+	if !CheckPath(filepath.Dir(path)) {
+		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	yamlData, err := yaml.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, yamlData, 0644); err != nil {
+		return err
+	}
+
+	return nil
 }
