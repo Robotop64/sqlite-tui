@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"os"
 
+	Focus "github.com/Robotop64/sqlite-tui/internal/enums/ui"
 	tabs "github.com/Robotop64/sqlite-tui/internal/tabs"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
-	cfg "github.com/spf13/viper"
 )
 
 type model struct {
 	Dim       utils.Dimensions
 	Tabs      []tabs.Tab
 	ActiveTab int
-	Profile   *cfg.Viper
 }
 
 func (m model) Init() tea.Cmd {
@@ -31,15 +30,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c", "ctrl+q":
 			return m, tea.Quit
-		case "ctrl+s":
-			cfg.WriteConfig()
-			return m, nil
-		case "alt+right":
+		// case "ctrl+s":
+		// 	utils.SaveConfig()
+		// 	fmt.Println("Configuration saved.")
+		case "ctrl+right":
 			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
 			return m, nil
-		case "alt+left":
+		case "ctrl+left":
 			m.ActiveTab = max(m.ActiveTab-1, 0)
 			return m, nil
 		default:
@@ -61,23 +60,12 @@ func main() {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
-	//try to load last profile config
-	var profile utils.Profile = nil
-	last_used := cfg.GetInt("profiles.last_used")
-	if last_used > 0 {
-		profilePath := cfg.GetStringSlice("profiles.paths")[last_used-1]
-		loadedProfile, err := utils.LoadProfile(profilePath)
-		if err != nil {
-			fmt.Println("Error loading profile:", err)
-			loadedProfile = nil
-		} else {
-			profile = loadedProfile
-		}
-	}
+	// load profiles
+	utils.LoadProfiles()
 
-	m := model{Profile: profile}
+	m := model{}
 	m.Tabs = []tabs.Tab{
-		tabs.ProfileTab{Name: "Profiles", Profiles: utils.LoadProfiles()}.PostInit(),
+		tabs.ProfileTab{Name: "Profiles", ElemFocus: Focus.ProfileList}.PostInit(),
 		tabs.BrowserTab{Name: "Browser"},
 	}
 
