@@ -15,7 +15,7 @@ import (
 	bubTxtIn "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
-	lgTree "github.com/charmbracelet/lipgloss/tree"
+	lgList "github.com/charmbracelet/lipgloss/list"
 	cfg "github.com/spf13/viper"
 )
 
@@ -35,15 +35,20 @@ func (b ProfileTab) PostInit() ProfileTab {
 	b.IdxSelected = utils.Configs.Profiles.LastUsed
 
 	txtinput := bubTxtIn.New()
-	txtinput.Placeholder = "Enter profile path..."
+	txtinput.Placeholder = "..."
+	txtinput.Width = 256
 	txtinput.CharLimit = 256
 	b.AddProfile = txtinput
 
 	txtedit := bubTxtEdit.New()
 	b.ViewProfile = txtedit
-	profile := utils.ActiveProfile()
-	data, _ := yaml.Marshal(profile)
-	b.ViewProfile.SetValue(string(data))
+
+	if len(utils.Profiles) > 0 {
+
+		profile := utils.ActiveProfile()
+		data, _ := yaml.Marshal(profile)
+		b.ViewProfile.SetValue(string(data))
+	}
 
 	return b
 }
@@ -104,35 +109,13 @@ func (b ProfileTab) View(width, height int) string {
 
 	//=Side Column=============
 	//-Explorer----------------
-	explorer_height := explorer_size.Height - lipgloss.Height(tab.String()) - 2*border
+	explorer_height := explorer_size.Height - lipgloss.Height(tab.String())
 
-	tree := lgTree.New()
-	loadProfiles(tree, b.IdxSelected)
-	tree.ItemStyleFunc(func(_ lgTree.Children, i int) lipgloss.Style {
-		if len(utils.Profiles) == 0 {
-			return style.Normal
-		}
-
-		if i == b.IdxFocus {
-			return style.Selected
-		}
-		return style.Normal
-	})
-
-	explorer := sidecolumn.
-		Padding(0, 1).
-		Height(explorer_height)
-
-	explorer = explorer.SetString(tree.String())
-
-	if b.ElemFocus == Focus.ProfileList {
-		explorer = explorer.BorderForeground(color.BoxSelected)
-	}
 	//-------------------------
 	sidebar = lipgloss.JoinVertical(
 		lipgloss.Top,
 		tab.Render(),
-		explorer.Render(),
+		explorer(b, utils.Dimensions{Width: explorer_size.Width, Height: explorer_height}).Render(),
 	)
 
 	//=Hints===================
@@ -155,13 +138,12 @@ func (b ProfileTab) View(width, height int) string {
 	//=Content Column==========
 
 	//=========================
-
 	layout := lipgloss.JoinVertical(
 		lipgloss.Top,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			sidebar,
-			viewProfile(b, content_size).Render(),
+			editor(b, content_size).Render(),
 		),
 		hints,
 	)
@@ -279,6 +261,10 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			b.AddProfile, cmd = b.AddProfile.Update(msg)
 			return b, cmd
 		case Focus.TxtEdit:
+			if len(utils.Profiles) == 0 {
+				return b, nil
+			}
+
 			switch msg.String() {
 			case "ctrl+s":
 				data := b.ViewProfile.Value()
@@ -310,22 +296,50 @@ func (b ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	return b, nil
 }
 
-func loadProfiles(t *lgTree.Tree, idxSel int) {
-	for i, profile := range utils.Profiles {
-		if profile == nil {
-			t.Child(fmt.Sprintf("Faulty Profile!\n@Position %d", i+1))
+func explorer(b ProfileTab, dim utils.Dimensions) lipgloss.Style {
+	list := lgList.New()
+	names := utils.Map(utils.Profiles, func(i int, p *utils.Profile) string {
+		if p == nil {
+			return "Faulty Profile!"
 		} else {
-			if i == idxSel {
-				t.Child(">" + profile.Name + "<")
-			} else {
-				t.Child(profile.Name)
-			}
+			return p.Name
 		}
+	})
+
+	view := style.Box.
+		Padding(0, 1).
+		Width(dim.Width - 2).
+		Height(dim.Height - 2)
+
+	if b.ElemFocus == Focus.ProfileList {
+		view = view.BorderForeground(color.BoxSelected)
 	}
 
-	if len(utils.Profiles) == 0 {
-		t.Child("...")
+	list.Items(names)
+
+	list.Enumerator(func(l lgList.Items, i int) string {
+		if i == b.IdxSelected {
+			return ">"
+		}
+		return "•"
+	})
+
+	list.ItemStyleFunc(func(_ lgList.Items, i int) lipgloss.Style {
+		if len(utils.Profiles) == 0 {
+			return style.Normal
+		}
+
+		if i == b.IdxFocus {
+			return style.Selected
+		}
+		return style.Normal
+	})
+
+	if len(names) == 0 {
+		return view.SetString("...")
 	}
+
+	return view.SetString(list.String())
 }
 
 func addProfilePrompt(b ProfileTab, dim utils.Dimensions) lipgloss.Style {
@@ -340,7 +354,7 @@ func addProfilePrompt(b ProfileTab, dim utils.Dimensions) lipgloss.Style {
 	button_confirm := style.Button.SetString(label_confirm).Render() + "\n" +
 		style.Normal.SetString(fmt.Sprintf(" (%s)", key_confirm)).Render()
 
-	buffer_length := dim.Width - 2 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
+	buffer_length := dim.Width - 4 - lipgloss.Width(button_cancel) - lipgloss.Width(button_confirm)
 
 	hints := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -372,7 +386,7 @@ func addProfilePrompt(b ProfileTab, dim utils.Dimensions) lipgloss.Style {
 	return popup
 }
 
-func viewProfile(b ProfileTab, dims utils.Dimensions) lipgloss.Style {
+func editor(b ProfileTab, dims utils.Dimensions) lipgloss.Style {
 	b.ViewProfile.SetWidth(dims.Width - 2)
 	b.ViewProfile.SetHeight(dims.Height - 3)
 
@@ -386,7 +400,7 @@ func viewProfile(b ProfileTab, dims utils.Dimensions) lipgloss.Style {
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				style.Title.SetString("Viewer/Editor:").Render(),
-				b.ViewProfile.View(),
+				utils.Ifelse(len(utils.Profiles) > 0, b.ViewProfile.View(), "").(string),
 			),
 		)
 
