@@ -82,7 +82,7 @@ func LoadConfig() error {
 	case "windows":
 		configDirPrefix = os.Getenv("LOCALAPPDATA")
 	case "linux":
-		configDirPrefix = "~/.config"
+		configDirPrefix = os.Getenv("XDG_CONFIG_HOME")
 	// case "darwin":
 	// 	cfg.AddConfigPath("/usr/local/etc/myapp")
 	default:
