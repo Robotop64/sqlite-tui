@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	Focus "github.com/Robotop64/sqlite-tui/internal/enums/ui"
 	tabs "github.com/Robotop64/sqlite-tui/internal/tabs"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 
@@ -36,10 +35,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 	utils.SaveConfig()
 		// 	fmt.Println("Configuration saved.")
 		case "ctrl+right":
+			prev_active_tab := m.ActiveTab
 			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
+			if m.ActiveTab != prev_active_tab {
+				m.Tabs[m.ActiveTab].Activate()
+			}
 			return m, nil
 		case "ctrl+left":
+			prev_active_tab := m.ActiveTab
 			m.ActiveTab = max(m.ActiveTab-1, 0)
+			if m.ActiveTab != prev_active_tab {
+				m.Tabs[m.ActiveTab].Activate()
+			}
 			return m, nil
 		default:
 			updated_tab, cmd := m.Tabs[m.ActiveTab].Update(msg)
@@ -65,9 +72,14 @@ func main() {
 
 	m := model{}
 	m.Tabs = []tabs.Tab{
-		tabs.ProfileTab{Name: "Profiles", ElemFocus: Focus.ProfileList}.PostInit(),
-		tabs.BrowserTab{Name: "Browser"},
+		&tabs.ProfileTab{},
+		&tabs.BrowserTab{},
 	}
+	for _, t := range m.Tabs {
+		t.Setup()
+	}
+
+	m.Tabs[0].Activate()
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
