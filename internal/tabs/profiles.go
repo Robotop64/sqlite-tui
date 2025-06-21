@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	Focus "github.com/Robotop64/sqlite-tui/internal/enums/profiles"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
@@ -20,7 +19,7 @@ import (
 
 type ProfileTab struct {
 	name      string
-	ElemFocus Focus.UiFocus
+	ElemFocus UiFocus
 
 	IdxFocus    int
 	IdxSelected int
@@ -29,15 +28,24 @@ type ProfileTab struct {
 	ViewProfile bubTxtEdit.Model
 }
 
+type UiFocus int
+
+const (
+	None UiFocus = iota
+	TxtInput
+	TxtEdit
+	ProfileList
+)
+
 func (b *ProfileTab) GetName() string {
 	return b.name
 }
 
 func (b *ProfileTab) Init() tea.Cmd {
-	if b.ElemFocus == Focus.TxtInput {
+	if b.ElemFocus == TxtInput {
 		return bubTxtEdit.Blink
 	}
-	if b.ElemFocus == Focus.TxtInput {
+	if b.ElemFocus == TxtInput {
 		return bubTxtIn.Blink
 	}
 
@@ -46,7 +54,7 @@ func (b *ProfileTab) Init() tea.Cmd {
 
 func (b *ProfileTab) Setup() Tab {
 	b.name = "Profiles"
-	b.ElemFocus = Focus.ProfileList
+	b.ElemFocus = ProfileList
 
 	txtinput := bubTxtIn.New()
 	txtinput.Placeholder = "..."
@@ -94,7 +102,7 @@ func (b *ProfileTab) View(width, height int) string {
 
 	//=Left Column=============================================================
 	tab_Box := style.Box.
-		Width(explorer_size.Width-2*style.Border).
+		Width(explorer_size.Width-2).
 		Height(1).
 		SetString(
 			"⏴",
@@ -141,7 +149,7 @@ func (b *ProfileTab) View(width, height int) string {
 		hints,
 	)
 
-	if !(b.ElemFocus == Focus.TxtInput) {
+	if !(b.ElemFocus == TxtInput) {
 		return layout
 	} else {
 		overlay, err := utils.Overlay(
@@ -165,18 +173,18 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+left":
-			b.ElemFocus = Focus.ProfileList
+			b.ElemFocus = ProfileList
 			b.ViewProfile.Blur()
 			return b, nil
 		case "alt+right":
-			b.ElemFocus = Focus.TxtEdit
+			b.ElemFocus = TxtEdit
 			return b, nil
 		}
 
 		switch b.ElemFocus {
-		case Focus.None:
+		case None:
 			return b, nil
-		case Focus.ProfileList:
+		case ProfileList:
 			switch msg.String() {
 			case "up":
 				b.IdxFocus = max(b.IdxFocus-1, 0)
@@ -185,7 +193,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.IdxFocus = min(b.IdxFocus+1, len(utils.Profiles)-1)
 				return b, nil
 			case "+":
-				b.ElemFocus = Focus.TxtInput
+				b.ElemFocus = TxtInput
 				return b, nil
 			case "-":
 				if len(utils.Profiles) > 0 && b.IdxFocus < len(utils.Profiles) {
@@ -208,17 +216,17 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			default:
 				return b, nil
 			}
-		case Focus.TxtInput:
+		case TxtInput:
 			b.AddProfile.Focus()
 			switch msg.String() {
 			case "esc":
-				b.ElemFocus = Focus.ProfileList
+				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()
 				return b, nil
 			case "enter":
 				raw_path := b.AddProfile.Value()
 				if raw_path == "" {
-					b.ElemFocus = Focus.ProfileList
+					b.ElemFocus = ProfileList
 					return b, nil
 				}
 
@@ -233,25 +241,25 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				var err error
 				if !fileExists {
 					if _, err = utils.CreateProfile(b.AddProfile.Value()); err != nil {
-						b.ElemFocus = Focus.ProfileList
+						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				} else {
 					if _, err = utils.LoadProfile(path); err != nil {
-						b.ElemFocus = Focus.ProfileList
+						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				}
 
-				b.ElemFocus = Focus.ProfileList
+				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()
 				return b, nil
 			}
 			b.AddProfile, cmd = b.AddProfile.Update(msg)
 			return b, cmd
-		case Focus.TxtEdit:
+		case TxtEdit:
 			if len(utils.Profiles) == 0 {
 				return b, nil
 			}
@@ -302,7 +310,7 @@ func gen_list(b *ProfileTab, dim utils.Dimensions) lipgloss.Style {
 		Width(dim.Width - 2).
 		Height(dim.Height - 2)
 
-	if b.ElemFocus == Focus.ProfileList {
+	if b.ElemFocus == ProfileList {
 		view = view.BorderForeground(color.BoxSelected)
 	}
 
@@ -370,7 +378,7 @@ func addProfilePrompt(b *ProfileTab, dim utils.Dimensions) lipgloss.Style {
 			),
 		)
 
-	if b.ElemFocus == Focus.TxtInput {
+	if b.ElemFocus == TxtInput {
 		popup = popup.BorderForeground(color.BoxSelected)
 	}
 
@@ -395,7 +403,7 @@ func gen_editor(b *ProfileTab, dims utils.Dimensions) lipgloss.Style {
 			),
 		)
 
-	if b.ElemFocus == Focus.TxtEdit {
+	if b.ElemFocus == TxtEdit {
 		view = view.BorderForeground(color.BoxSelected)
 	}
 
