@@ -3,179 +3,207 @@ package tabs
 import (
 	comp "github.com/Robotop64/sqlite-tui/internal/components"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
+	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
-	lgTable "github.com/charmbracelet/lipgloss/table"
-	lgTree "github.com/charmbracelet/lipgloss/tree"
+	lgList "github.com/charmbracelet/lipgloss/list"
 )
 
 type BrowserTab struct {
-	Name     string
-	Explorer string
-	Tree     *lgTree.Tree
-	Table    *comp.Table
+	name       string
+	ElemFocus  ElemFocus
+	ExplMode   ExplMode
+	SchemaList comp.ListModel[string]
+	ViewsList  comp.ListModel[string]
 }
 
-const border = 1
+type ExplMode int
 
-func (b BrowserTab) Init() tea.Cmd {
+const (
+	Schema ExplMode = iota
+	Views
+)
+
+type ElemFocus int
+
+const (
+	Explorer ElemFocus = iota
+	Viewer
+)
+
+func (b *BrowserTab) GetName() string {
+	return b.name
+}
+
+func (b *BrowserTab) Init() tea.Cmd {
 	return nil
 }
 
-func (b BrowserTab) GetName() string {
-	return b.Name
+func (b *BrowserTab) Setup() Tab {
+	b.name = "Browser"
+	b.ElemFocus = Explorer
+	b.ExplMode = Schema
+
+	return b
 }
 
-func (b BrowserTab) View(width, height int) string {
+func (b *BrowserTab) Activate() {
+}
+
+func (b *BrowserTab) View(width, height int) string {
+	//=Calculations============================================================
 	hint_height := 2
-	sidecolumn_width := width / 5
-	maincolumn_width := width - sidecolumn_width
-	layout_height := height - hint_height
 
-	sidecolumn := style.Box.
-		Width(sidecolumn_width - 2*border).
-		Height(layout_height - 2*border)
-	// maincolumn := box.
-	// Width(maincolumn_width - 2*border).
-	// Height(layout_height - 2*border)
+	explorer_size := utils.Dimensions{
+		Width:  width / 5,
+		Height: height - hint_height,
+	}
 
-	tab := sidecolumn.
+	// content_size := utils.Dimensions{
+	// 	Width:  width - explorer_size.Width,
+	// 	Height: height - hint_height,
+	// }
+	//=========================================================================
+
+	//=Left Column=============================================================
+	tab_Box := style.Box.
+		Width(explorer_size.Width-2).
 		Height(1).
 		SetString(
 			"⏴",
-			lipgloss.PlaceHorizontal(lipgloss.Width(sidecolumn.String())-6, lipgloss.Center, b.Name),
+			lipgloss.PlaceHorizontal(explorer_size.Width-6, lipgloss.Center, b.name),
 			"⏵",
-		)
+		).
+		Foreground(color.TextHighlight)
 
-	var (
-		sidebar,
-		content,
-		hints string
-	)
+	selector_Box := gen_explorer(b, utils.Dimensions{Width: explorer_size.Width, Height: explorer_size.Height - 3})
 
-	//=Side Column========
-	//-Explorer------------
-	explorer_height := layout_height - lipgloss.Height(tab.String()) - 2*border
-
-	tree := lgTree.New()
-	loadSchema(tree)
-
-	explorer := sidecolumn.
-		Padding(0, 1).
-		Height(explorer_height)
-
-	explorer = explorer.SetString(tree.String())
-	//---------------------
-	sidebar = lipgloss.JoinVertical(
+	left_Column := lipgloss.JoinVertical(
 		lipgloss.Top,
-		tab.Render(),
-		explorer.Render(),
+		tab_Box.Render(),
+		selector_Box.Render(),
 	)
-	//=====================
-	//region Main Column=========
-	actions_height := 1
-	//-Table---------------
-	table_height := layout_height - actions_height - 2*border
+	//=========================================================================
 
-	table := lgTable.New().
-		Width(maincolumn_width).
-		Height(table_height)
+	//=Content Column==========================================================
+	// right_Column := gen_editor(b, content_size).Render()
+	//=========================================================================
 
-	table = table.
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			s := lipgloss.NewStyle().Padding(0, 1).Align(lipgloss.Center)
-			switch {
-			case row == lgTable.HeaderRow:
-				return s.Foreground(lipgloss.Color("205")).Bold(true)
-			default:
-				return s.Foreground(lipgloss.Color("205"))
-			}
-		})
-
-	table_dims := utils.Dimensions{}
-	loadTable(table, &table_dims)
-	fillTable(table,
-		max(0, table_height-3*border-1-table_dims.Height),
-		table_dims.Width,
-	)
-
-	//---------------------
-	//-Actions-------------
-	actions := lgTable.New().
-		Width(maincolumn_width).
-		Height(actions_height).
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			return lipgloss.NewStyle().Padding(0, 1).Align(lipgloss.Center).Foreground(lipgloss.Color("205"))
-		})
-	actions = actions.Row([]string{"Query", "Filter", "Add", "Sort", "Update"}...)
-	//---------------------
-	content = lipgloss.JoinVertical(
+	//=Hints===================================================================
+	hints := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		table.Render(),
-		actions.Render(),
+		"quit:\nctrl+c|q", "│\n│",
+		"save:\nctrl+s", "│\n│",
+		"tabs:\nalt+(</>)", "│\n│",
+		"profiles:\n   ↑/↓", "│\n│",
+		"add:\n +", "│\n│",
+		"remove:\n   -", "│\n│",
 	)
-	//=====================
-	//=Hints===============
-	hints = lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		" tabs:\nalt+(</>)",
-		"│\n│",
-		" quit:\nctrl+c, q",
-	)
-	//=====================
+	//=========================================================================
 
-	return lipgloss.JoinVertical(
+	//=Layout==================================================================
+	layout := lipgloss.JoinVertical(
 		lipgloss.Top,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			sidebar,
-			content,
+			left_Column,
+			// right_Column,
 		),
 		hints,
 	)
+
+	return layout
+	//=========================================================================
 }
 
-func (b BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
+func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	return b, nil
 }
 
-func loadTable(t *lgTable.Table, dims *utils.Dimensions) {
-	headers := []string{"ID", "Name", "Adress", "Status"}
-	data := [][]string{
-		{"1", "Alice", "123 Main St", "Completed"},
-		{"2", "Bob", "456 Elm St", "Pending"},
-		{"3", "Charlie", "789 Oak St", "Cancelled"},
-		{"4", "David", "321 Pine St", "In Progress"},
-		{"5", "Eve", "654 Maple St", "Completed"},
-		{"6", "Frank", "987 Cedar St", "Pending"},
-		{"7", "Grace", "159 Birch St", "Cancelled"},
-		{"8", "Hank", "753 Spruce St", "In Progress"},
+func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
+	view := style.Box.
+		Padding(0, 1).
+		Width(dims.Width - 2).
+		Height(dims.Height - 2).
+		BorderForeground(utils.Ifelse(b.ElemFocus == Explorer, color.BoxSelected, color.BoxUnselected).(lipgloss.Color))
+
+	list := lgList.New()
+
+	var selected int
+	var focused int
+	var header string
+
+	switch b.ExplMode {
+	case Schema:
+		header = "DB Schema:"
+		selected = b.SchemaList.Selected
+		focused = b.SchemaList.Focused
+		list.Items(b.SchemaList.Items)
+	case Views:
+		header = "Views:"
+		selected = b.ViewsList.Selected
+		focused = b.ViewsList.Focused
+		list.Items(b.ViewsList.Items)
 	}
 
-	t.Headers(headers...)
-	t.Rows(data...)
+	list.Enumerator(func(l lgList.Items, i int) string {
+		if i == selected {
+			return ">"
+		}
+		return "•"
+	})
 
-	dims.Width = len(headers)
-	dims.Height = len(data)
+	list.ItemStyleFunc(func(_ lgList.Items, i int) lipgloss.Style {
+		if i == focused {
+			return style.Selected
+		}
+		return style.Normal
+	})
+
+	view.SetString(
+		lipgloss.JoinVertical(
+			lipgloss.Top,
+			style.Title.SetString(header).Render(),
+			list.String(),
+		),
+	)
+
+	return view
 }
 
-func loadSchema(t *lgTree.Tree) {
-	t.Root("DB Schema:").
-		Child("Tables").
-		Child("Users").
-		Child("Products").
-		Child("Orders")
-}
+// func loadTable(t *lgTable.Table, dims *utils.Dimensions) {
+// 	headers := []string{"ID", "Name", "Adress", "Status"}
+// 	data := [][]string{
+// 		{"1", "Alice", "123 Main St", "Completed"},
+// 		{"2", "Bob", "456 Elm St", "Pending"},
+// 		{"3", "Charlie", "789 Oak St", "Cancelled"},
+// 		{"4", "David", "321 Pine St", "In Progress"},
+// 		{"5", "Eve", "654 Maple St", "Completed"},
+// 		{"6", "Frank", "987 Cedar St", "Pending"},
+// 		{"7", "Grace", "159 Birch St", "Cancelled"},
+// 		{"8", "Hank", "753 Spruce St", "In Progress"},
+// 	}
 
-func fillTable(t *lgTable.Table, rows int, cols int) {
-	empty_row := make([]string, cols)
-	for i := 0; i < rows; i++ {
-		t.Row(empty_row...)
-	}
-}
+// 	t.Headers(headers...)
+// 	t.Rows(data...)
+
+// 	dims.Width = len(headers)
+// 	dims.Height = len(data)
+// }
+
+// func loadSchema(t *lgTree.Tree) {
+// 	t.Root("DB Schema:").
+// 		Child("Tables").
+// 		Child("Users").
+// 		Child("Products").
+// 		Child("Orders")
+// }
+
+// func fillTable(t *lgTable.Table, rows int, cols int) {
+// 	empty_row := make([]string, cols)
+// 	for i := 0; i < rows; i++ {
+// 		t.Row(empty_row...)
+// 	}
+// }
