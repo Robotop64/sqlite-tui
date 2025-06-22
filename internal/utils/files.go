@@ -13,7 +13,7 @@ import (
 
 const BIN_NAME = "sqlite-tui"
 
-func DataDir() string {
+func DataLoc() string {
 	var dirPrefix string
 
 	switch runtime.GOOS {
@@ -36,7 +36,7 @@ func DataDir() string {
 	return dataLocation
 }
 
-func ConfigDir() string {
+func ConfigLoc() string {
 	var configDirPrefix string
 
 	switch runtime.GOOS {
