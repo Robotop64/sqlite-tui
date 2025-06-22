@@ -70,7 +70,7 @@ func (b *ProfileTab) Setup() Tab {
 
 func (b *ProfileTab) Activate() {
 
-	b.IdxSelected = utils.Configs.Profiles.LastUsed
+	b.IdxSelected = utils.Data.Profiles.LastUsed
 
 	if len(utils.Profiles) > 0 {
 
@@ -180,7 +180,6 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			b.ElemFocus = TxtEdit
 			return b, nil
 		case "ctrl+s":
-			utils.SaveConfig()
 			data := b.ViewProfile.Value()
 			if !(len(data) == 0) {
 				profile := utils.ActiveProfile()
@@ -217,12 +216,12 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				return b, nil
 			case "-":
 				utils.Profiles = utils.RemoveIdx(utils.Profiles, b.IdxFocus)
-				utils.Configs.Profiles.Paths = utils.RemoveIdx(utils.Configs.Profiles.Paths, b.IdxFocus)
+				utils.Data.Profiles.Paths = utils.RemoveIdx(utils.Data.Profiles.Paths, b.IdxFocus)
 
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
-				utils.Configs.Profiles.LastUsed = b.IdxFocus
+				utils.Data.Profiles.LastUsed = b.IdxFocus
 				b.IdxSelected = b.IdxFocus
 				profile := utils.ActiveProfile()
 				data, _ := yaml.Marshal(profile)
@@ -274,7 +273,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 					}
 				}
 				utils.Profiles = append(utils.Profiles, profile)
-				utils.Configs.Profiles.Paths = append(utils.Configs.Profiles.Paths, path)
+				utils.Data.Profiles.Paths = append(utils.Data.Profiles.Paths, path)
 
 				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()

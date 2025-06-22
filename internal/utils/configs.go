@@ -7,7 +7,6 @@ import (
 )
 
 type Config struct {
-	Profiles ProfileCat `mapstructure:"Profiles" yaml:"Profiles"`
 }
 
 var Configs Config
@@ -15,16 +14,11 @@ var Configs Config
 var configLocation string
 
 func DefConfig() Config {
-	return Config{
-		Profiles: ProfileCat{
-			Paths:    []string{},
-			LastUsed: 0,
-		},
-	}
+	return Config{}
 }
 
 func LoadConfig() error {
-	configDir := ConfigDir()
+	configDir := ConfigLoc()
 
 	os.MkdirAll(configDir, os.ModePerm)
 

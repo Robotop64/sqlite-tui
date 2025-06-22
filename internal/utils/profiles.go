@@ -69,7 +69,7 @@ func CreateProfile(path string) (*Profile, error) {
 }
 
 func LoadProfiles() {
-	paths := Configs.Profiles.Paths
+	paths := Data.Profiles.Paths
 	Profiles = make([]*Profile, len(paths))
 
 	for i, path := range paths {
@@ -84,9 +84,9 @@ func LoadProfiles() {
 
 func ActiveProfile() *Profile {
 
-	if Configs.Profiles.LastUsed < 0 || Configs.Profiles.LastUsed >= len(Profiles) {
+	if Data.Profiles.LastUsed < 0 || Data.Profiles.LastUsed >= len(Profiles) {
 		return nil
 	}
 
-	return Profiles[Configs.Profiles.LastUsed]
+	return Profiles[Data.Profiles.LastUsed]
 }

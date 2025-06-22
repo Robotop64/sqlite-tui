@@ -27,10 +27,9 @@ func DefData() DataType {
 }
 
 func LoadData() error {
-	dataDir := DataDir()
-
+	dataLocation = DataLoc()
 	if !CheckPath(dataLocation) {
-		if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+		if err := os.MkdirAll(dataLocation, os.ModePerm); err != nil {
 			return fmt.Errorf("error creating data directory: %v", err)
 		}
 		Data = DefData()
@@ -52,7 +51,7 @@ func LoadData() error {
 }
 
 func SaveData() error {
-	if err := SaveYamlFile(dataLocation, &Data); err != nil {
+	if err := SaveYamlFile(DataLoc(), &Data); err != nil {
 		return fmt.Errorf("error saving data file: %v", err)
 	}
 	return nil
