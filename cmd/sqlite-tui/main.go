@@ -6,6 +6,7 @@ import (
 
 	tabs "github.com/Robotop64/sqlite-tui/internal/tabs"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
+	persistent "github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -30,8 +31,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "ctrl+q":
-			utils.SaveConfig()
-			utils.SaveData()
+			persistent.SaveConfig()
+			persistent.SaveData()
 			return m, tea.Quit
 		// case "ctrl+s":
 		// 	utils.SaveConfig()
@@ -65,16 +66,16 @@ func (m model) View() string {
 
 func main() {
 	// load main config
-	if err := utils.LoadConfig(); err != nil {
+	if err := persistent.LoadConfig(); err != nil {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
-	if err := utils.LoadData(); err != nil {
+	if err := persistent.LoadData(); err != nil {
 		fmt.Println("Error loading data:", err)
 		os.Exit(1)
 	}
 	// load profiles
-	utils.LoadProfiles()
+	persistent.LoadProfiles()
 
 	m := model{}
 	m.Tabs = []tabs.Tab{

@@ -31,9 +31,7 @@ func DataLoc() string {
 		dataDir = filepath.Join(dataDir, "data")
 	}
 
-	dataLocation := filepath.Join(dataDir, "userData.yaml")
-
-	return dataLocation
+	return filepath.Join(dataDir, "userData.yaml")
 }
 
 func ConfigLoc() string {
@@ -48,9 +46,8 @@ func ConfigLoc() string {
 		log.Fatalf("Unsupported OS: %s", os.Getenv("OS"))
 	}
 	configDir := filepath.Join(configDirPrefix, BIN_NAME)
-	configLocation = filepath.Join(configDir, "config.yaml")
 
-	return configLocation
+	return filepath.Join(configDir, "config.yaml")
 }
 
 func CleanPath(path string) string {

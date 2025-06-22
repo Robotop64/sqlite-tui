@@ -1,8 +1,10 @@
-package utils
+package persistent
 
 import (
 	"fmt"
 	"path/filepath"
+
+	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 )
 
 type Target struct {
@@ -32,7 +34,7 @@ func DefProfile() Profile {
 func LoadProfile(path string) (*Profile, error) {
 	profile := DefProfile()
 
-	if err := LoadYamlFile(path, &profile); err != nil {
+	if err := utils.LoadYamlFile(path, &profile); err != nil {
 		return nil, fmt.Errorf("error loading profile YAML file: %v", err)
 	}
 
@@ -40,7 +42,7 @@ func LoadProfile(path string) (*Profile, error) {
 }
 
 func SaveProfile(profile *Profile, path string) error {
-	if err := SaveYamlFile(path, profile); err != nil {
+	if err := utils.SaveYamlFile(path, profile); err != nil {
 		return fmt.Errorf("error saving profile YAML file: %v", err)
 	}
 
@@ -48,12 +50,12 @@ func SaveProfile(profile *Profile, path string) error {
 }
 
 func CreateProfile(path string) (*Profile, error) {
-	path = CleanPath(path)
-	if !EndsWith(path, "Profile.yaml") {
+	path = utils.CleanPath(path)
+	if !utils.EndsWith(path, "Profile.yaml") {
 		path = filepath.Join(path, "Profile.yaml")
 	}
 
-	if CheckPath(path) {
+	if utils.CheckPath(path) {
 		return nil, fmt.Errorf("profile already exists at path: %s", path)
 	}
 

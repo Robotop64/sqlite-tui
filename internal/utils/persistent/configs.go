@@ -1,9 +1,11 @@
-package utils
+package persistent
 
 import (
 	"fmt"
 	"log"
 	"os"
+
+	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 )
 
 type Config struct {
@@ -11,20 +13,18 @@ type Config struct {
 
 var Configs Config
 
-var configLocation string
-
 func DefConfig() Config {
 	return Config{}
 }
 
 func LoadConfig() error {
-	configDir := ConfigLoc()
+	configLocation := utils.ConfigLoc()
 
-	os.MkdirAll(configDir, os.ModePerm)
+	os.MkdirAll(configLocation, os.ModePerm)
 
-	if !CheckPath(configLocation) {
+	if !utils.CheckPath(configLocation) {
 		fmt.Printf("Config file not found at %s. \nCreating default.\n", configLocation)
-		if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
+		if err := os.MkdirAll(configLocation, os.ModePerm); err != nil {
 			log.Fatalf("Error creating config directory: %v", err)
 		}
 		Configs = DefConfig()
@@ -38,7 +38,7 @@ func LoadConfig() error {
 	}
 
 	Configs = DefConfig()
-	if err := LoadYamlFile(configLocation, &Configs); err != nil {
+	if err := utils.LoadYamlFile(configLocation, &Configs); err != nil {
 		fmt.Printf("Error loading config file: %v\n", err)
 		overwriteDialog(configLocation)
 		return nil
@@ -71,7 +71,7 @@ func overwriteDialog(path string) {
 }
 
 func SaveConfig() error {
-	if err := SaveYamlFile(configLocation, Configs); err != nil {
+	if err := utils.SaveYamlFile(utils.ConfigLoc(), Configs); err != nil {
 		return fmt.Errorf("error saving config YAML file: %v", err)
 	}
 

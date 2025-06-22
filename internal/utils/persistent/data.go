@@ -1,8 +1,10 @@
-package utils
+package persistent
 
 import (
 	"fmt"
 	"os"
+
+	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 )
 
 type ProfileCat struct {
@@ -15,7 +17,6 @@ type DataType struct {
 }
 
 var Data DataType
-var dataLocation string
 
 func DefData() DataType {
 	return DataType{
@@ -27,8 +28,8 @@ func DefData() DataType {
 }
 
 func LoadData() error {
-	dataLocation = DataLoc()
-	if !CheckPath(dataLocation) {
+	dataLocation := utils.DataLoc()
+	if !utils.CheckPath(dataLocation) {
 		if err := os.MkdirAll(dataLocation, os.ModePerm); err != nil {
 			return fmt.Errorf("error creating data directory: %v", err)
 		}
@@ -43,7 +44,7 @@ func LoadData() error {
 	}
 
 	Data = DefData()
-	if err := LoadYamlFile(dataLocation, &Data); err != nil {
+	if err := utils.LoadYamlFile(dataLocation, &Data); err != nil {
 		return fmt.Errorf("error loading data file: %v", err)
 	}
 
@@ -51,7 +52,7 @@ func LoadData() error {
 }
 
 func SaveData() error {
-	if err := SaveYamlFile(DataLoc(), &Data); err != nil {
+	if err := utils.SaveYamlFile(utils.DataLoc(), &Data); err != nil {
 		return fmt.Errorf("error saving data file: %v", err)
 	}
 	return nil

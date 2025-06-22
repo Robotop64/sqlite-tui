@@ -8,6 +8,7 @@ import (
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
+	"github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	bubTxtEdit "github.com/charmbracelet/bubbles/textarea"
 	bubTxtIn "github.com/charmbracelet/bubbles/textinput"
@@ -70,11 +71,11 @@ func (b *ProfileTab) Setup() Tab {
 
 func (b *ProfileTab) Activate() {
 
-	b.IdxSelected = utils.Data.Profiles.LastUsed
+	b.IdxSelected = persistent.Data.Profiles.LastUsed
 
-	if len(utils.Profiles) > 0 {
+	if len(persistent.Profiles) > 0 {
 
-		profile := utils.ActiveProfile()
+		profile := persistent.ActiveProfile()
 		data, _ := yaml.Marshal(profile)
 		b.ViewProfile.SetValue(string(data))
 	}
@@ -182,7 +183,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		case "ctrl+s":
 			data := b.ViewProfile.Value()
 			if !(len(data) == 0) {
-				profile := utils.ActiveProfile()
+				profile := persistent.ActiveProfile()
 
 				if profile == nil {
 					return b, nil
@@ -192,7 +193,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 					fmt.Println("Error unmarshalling profile data:", err)
 					return b, nil
 				}
-				if err := utils.SaveProfile(profile, profile.Path); err != nil {
+				if err := persistent.SaveProfile(profile, profile.Path); err != nil {
 					fmt.Println("Error saving profile:", err)
 					return b, nil
 				}
@@ -209,26 +210,26 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "down":
-				b.IdxFocus = min(b.IdxFocus+1, len(utils.Profiles)-1)
+				b.IdxFocus = min(b.IdxFocus+1, len(persistent.Profiles)-1)
 				return b, nil
 			case "+":
 				b.ElemFocus = TxtInput
 				return b, nil
 			case "-":
-				utils.Profiles = utils.RemoveIdx(utils.Profiles, b.IdxFocus)
-				utils.Data.Profiles.Paths = utils.RemoveIdx(utils.Data.Profiles.Paths, b.IdxFocus)
+				persistent.Profiles = utils.RemoveIdx(persistent.Profiles, b.IdxFocus)
+				persistent.Data.Profiles.Paths = utils.RemoveIdx(persistent.Data.Profiles.Paths, b.IdxFocus)
 
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
-				utils.Data.Profiles.LastUsed = b.IdxFocus
+				persistent.Data.Profiles.LastUsed = b.IdxFocus
 				b.IdxSelected = b.IdxFocus
-				profile := utils.ActiveProfile()
+				profile := persistent.ActiveProfile()
 				data, _ := yaml.Marshal(profile)
 				b.ViewProfile.SetValue(string(data))
 				return b, nil
 			case "c":
-				if len(utils.Profiles) > 0 && b.IdxFocus < len(utils.Profiles) {
+				if len(persistent.Profiles) > 0 && b.IdxFocus < len(persistent.Profiles) {
 
 				}
 				return b, nil
@@ -257,23 +258,23 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				}
 
 				fileExists := utils.CheckPath(path)
-				var profile *utils.Profile
+				var profile *persistent.Profile
 				var err error
 				if !fileExists {
-					if profile, err = utils.CreateProfile(path); err != nil {
+					if profile, err = persistent.CreateProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				} else {
-					if profile, err = utils.LoadProfile(path); err != nil {
+					if profile, err = persistent.LoadProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				}
-				utils.Profiles = append(utils.Profiles, profile)
-				utils.Data.Profiles.Paths = append(utils.Data.Profiles.Paths, path)
+				persistent.Profiles = append(persistent.Profiles, profile)
+				persistent.Data.Profiles.Paths = append(persistent.Data.Profiles.Paths, path)
 
 				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()
@@ -282,7 +283,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			b.AddProfile, cmd = b.AddProfile.Update(msg)
 			return b, cmd
 		case TxtEdit:
-			if len(utils.Profiles) == 0 {
+			if len(persistent.Profiles) == 0 {
 				return b, nil
 			}
 
@@ -304,7 +305,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 
 func gen_list(b *ProfileTab, dim utils.Dimensions) lipgloss.Style {
 	list := lgList.New()
-	names := utils.Map(utils.Profiles, func(i int, p *utils.Profile) string {
+	names := utils.Map(persistent.Profiles, func(i int, p *persistent.Profile) string {
 		if p == nil {
 			return "Faulty Profile!"
 		} else {
@@ -331,7 +332,7 @@ func gen_list(b *ProfileTab, dim utils.Dimensions) lipgloss.Style {
 	})
 
 	list.ItemStyleFunc(func(_ lgList.Items, i int) lipgloss.Style {
-		if len(utils.Profiles) == 0 {
+		if len(persistent.Profiles) == 0 {
 			return style.Normal
 		}
 
@@ -406,7 +407,7 @@ func gen_editor(b *ProfileTab, dims utils.Dimensions) lipgloss.Style {
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				style.Title.SetString("Viewer/Editor:").Render(),
-				utils.Ifelse(len(utils.Profiles) > 0, b.ViewProfile.View(), "").(string),
+				utils.Ifelse(len(persistent.Profiles) > 0, b.ViewProfile.View(), "").(string),
 			),
 		)
 
