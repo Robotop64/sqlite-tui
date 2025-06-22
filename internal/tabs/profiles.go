@@ -179,6 +179,26 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		case "alt+right":
 			b.ElemFocus = TxtEdit
 			return b, nil
+		case "ctrl+s":
+			utils.SaveConfig()
+			data := b.ViewProfile.Value()
+			if !(len(data) == 0) {
+				profile := utils.ActiveProfile()
+
+				if profile == nil {
+					return b, nil
+				}
+
+				if err := yaml.Unmarshal([]byte(data), profile); err != nil {
+					fmt.Println("Error unmarshalling profile data:", err)
+					return b, nil
+				}
+				if err := utils.SaveProfile(profile, profile.Path); err != nil {
+					fmt.Println("Error saving profile:", err)
+					return b, nil
+				}
+			}
+			return b, nil
 		}
 
 		switch b.ElemFocus {
@@ -196,9 +216,9 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.ElemFocus = TxtInput
 				return b, nil
 			case "-":
-				if len(utils.Profiles) > 0 && b.IdxFocus < len(utils.Profiles) {
-					utils.Profiles = append(utils.Profiles[:b.IdxFocus], utils.Profiles[b.IdxFocus+1:]...)
-				}
+				utils.Profiles = utils.RemoveIdx(utils.Profiles, b.IdxFocus)
+				utils.Configs.Profiles.Paths = utils.RemoveIdx(utils.Configs.Profiles.Paths, b.IdxFocus)
+
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
@@ -238,20 +258,23 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				}
 
 				fileExists := utils.CheckPath(path)
+				var profile *utils.Profile
 				var err error
 				if !fileExists {
-					if _, err = utils.CreateProfile(b.AddProfile.Value()); err != nil {
+					if profile, err = utils.CreateProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				} else {
-					if _, err = utils.LoadProfile(path); err != nil {
+					if profile, err = utils.LoadProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
 						return b, nil
 					}
 				}
+				utils.Profiles = append(utils.Profiles, profile)
+				utils.Configs.Profiles.Paths = append(utils.Configs.Profiles.Paths, path)
 
 				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()
@@ -265,21 +288,6 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			}
 
 			switch msg.String() {
-			case "ctrl+s":
-				data := b.ViewProfile.Value()
-				if !(len(data) == 0) {
-					profile := utils.ActiveProfile()
-
-					if err := yaml.Unmarshal([]byte(data), profile); err != nil {
-						fmt.Println("Error unmarshalling profile data:", err)
-						return b, nil
-					}
-					if err := utils.SaveProfile(profile, profile.Path); err != nil {
-						fmt.Println("Error saving profile:", err)
-						return b, nil
-					}
-				}
-				return b, nil
 			default:
 				if !b.ViewProfile.Focused() {
 					cmd = b.ViewProfile.Focus()
