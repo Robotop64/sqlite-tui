@@ -1,12 +1,57 @@
 package utils
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
 )
+
+const BIN_NAME = "sqlite-tui"
+
+func DataDir() string {
+	var dirPrefix string
+
+	switch runtime.GOOS {
+	case "windows":
+		dirPrefix = os.Getenv("LOCALAPPDATA")
+	case "linux":
+		dirPrefix, _ = os.UserHomeDir()
+		dirPrefix = filepath.Join(dirPrefix, ".local", "share")
+	default:
+		log.Fatalf("Unsupported OS: %s", os.Getenv("OS"))
+	}
+
+	dataDir := filepath.Join(dirPrefix, BIN_NAME)
+	if runtime.GOOS == "windows" {
+		dataDir = filepath.Join(dataDir, "data")
+	}
+
+	dataLocation := filepath.Join(dataDir, "userData.yaml")
+
+	return dataLocation
+}
+
+func ConfigDir() string {
+	var configDirPrefix string
+
+	switch runtime.GOOS {
+	case "windows":
+		configDirPrefix = os.Getenv("LOCALAPPDATA")
+	case "linux":
+		configDirPrefix, _ = os.UserConfigDir()
+	default:
+		log.Fatalf("Unsupported OS: %s", os.Getenv("OS"))
+	}
+	configDir := filepath.Join(configDirPrefix, BIN_NAME)
+	configLocation = filepath.Join(configDir, "config.yaml")
+
+	return configLocation
+}
 
 func CleanPath(path string) string {
 	path = strings.Trim(path, "\" ")
@@ -35,16 +80,39 @@ func FileFromPath(path string, extension bool) string {
 func SaveYamlFile(path string, data interface{}) error {
 	path = CleanPath(path)
 	if !CheckPath(filepath.Dir(path)) {
+		fmt.Println("Creating directory:", filepath.Dir(path))
 		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+			fmt.Println("Error creating directory:", err)
 			return err
 		}
 	}
 
 	yamlData, err := yaml.Marshal(data)
 	if err != nil {
+		fmt.Println("Error marshalling data to YAML:", err)
 		return err
 	}
 	if err := os.WriteFile(path, yamlData, 0644); err != nil {
+		fmt.Println("Error writing YAML file:", err)
+		return err
+	}
+
+	return nil
+}
+
+func LoadYamlFile(path string, data interface{}) error {
+	path = CleanPath(path)
+	if !CheckPath(path) {
+		return os.ErrNotExist
+	}
+
+	var ydata []byte
+	var err error
+	if ydata, err = os.ReadFile(path); err != nil {
+		return err
+	}
+
+	if err := yaml.Unmarshal(ydata, data); err != nil {
 		return err
 	}
 
