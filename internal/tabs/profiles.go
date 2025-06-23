@@ -32,8 +32,7 @@ type ProfileTab struct {
 type UiFocus int
 
 const (
-	None UiFocus = iota
-	TxtInput
+	TxtInput UiFocus = iota
 	TxtEdit
 	ProfileList
 )
@@ -110,6 +109,7 @@ func (b *ProfileTab) View(width, height int) string {
 			lipgloss.PlaceHorizontal(explorer_size.Width-6, lipgloss.Center, b.name),
 			"⏵",
 		).
+		Bold(true).
 		Foreground(color.TextHighlight)
 
 	explorer_height := explorer_size.Height - lipgloss.Height(tab_Box.String())
@@ -202,8 +202,6 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 
 		switch b.ElemFocus {
-		case None:
-			return b, nil
 		case ProfileList:
 			switch msg.String() {
 			case "up":
