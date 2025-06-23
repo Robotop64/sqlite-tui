@@ -10,9 +10,10 @@ var Normal = lipgloss.NewStyle().
 	Foreground(color.TextUnselected)
 
 var Selected = lipgloss.NewStyle().
-	Bold(false).
-	Foreground(color.TextSelected).
-	Background(lipgloss.Color("20"))
+	Bold(true).
+	Foreground(color.TextUnselected).
+	// Background(lipgloss.Color("20"))
+	Underline(true)
 
 var Title = lipgloss.NewStyle().
 	Bold(true).

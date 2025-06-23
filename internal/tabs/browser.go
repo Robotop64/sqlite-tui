@@ -5,6 +5,7 @@ import (
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
+	"github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
@@ -15,22 +16,33 @@ type BrowserTab struct {
 	name       string
 	ElemFocus  ElemFocus
 	ExplMode   ExplMode
-	SchemaList comp.ListModel[string]
-	ViewsList  comp.ListModel[string]
+	ActiveList *comp.ListModel[string]
+	Lists      []comp.ListModel[string]
 }
 
 type ExplMode int
 
 const (
-	Schema ExplMode = iota
-	Views
+	Target ExplMode = iota
+	Schema
+	View
+)
+
+var headers = [3]string{"Targets", "Schema", "Views"}
+
+type ContentMode int
+
+const (
+	None ContentMode = iota
+	Edit
+	Display
 )
 
 type ElemFocus int
 
 const (
 	Explorer ElemFocus = iota
-	Viewer
+	Content
 )
 
 func (b *BrowserTab) GetName() string {
@@ -44,12 +56,17 @@ func (b *BrowserTab) Init() tea.Cmd {
 func (b *BrowserTab) Setup() Tab {
 	b.name = "Browser"
 	b.ElemFocus = Explorer
-	b.ExplMode = Schema
+	b.ExplMode = Target
+	b.Lists = make([]comp.ListModel[string], 3)
+	b.ActiveList = &b.Lists[0]
 
 	return b
 }
 
 func (b *BrowserTab) Activate() {
+	b.Lists[Target].Items = utils.Map(persistent.ActiveProfile().Targets, func(i int, t persistent.Target) string {
+		return t.Name
+	})
 }
 
 func (b *BrowserTab) View(width, height int) string {
@@ -76,6 +93,7 @@ func (b *BrowserTab) View(width, height int) string {
 			lipgloss.PlaceHorizontal(explorer_size.Width-6, lipgloss.Center, b.name),
 			"⏵",
 		).
+		Bold(true).
 		Foreground(color.TextHighlight)
 
 	selector_Box := gen_explorer(b, utils.Dimensions{Width: explorer_size.Width, Height: explorer_size.Height - 3})
@@ -119,6 +137,39 @@ func (b *BrowserTab) View(width, height int) string {
 }
 
 func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch b.ElemFocus {
+		case Explorer:
+			switch msg.String() {
+			case "left":
+				b.ExplMode = max(b.ExplMode-1, Target)
+				b.ActiveList = &b.Lists[b.ExplMode]
+				return b, nil
+			case "right":
+				b.ExplMode = min(b.ExplMode+1, View)
+				b.ActiveList = &b.Lists[b.ExplMode]
+				return b, nil
+			case "up":
+				b.ActiveList.Focused = max(b.ActiveList.Focused-1, 0)
+				return b, nil
+			case "down":
+				b.ActiveList.Focused = min(b.ActiveList.Focused+1, len(b.ActiveList.Items)-1)
+				return b, nil
+			case "enter":
+				b.ActiveList.Selected = b.ActiveList.Focused
+				switch b.ExplMode {
+				case Target:
+					targetIdx := b.ActiveList.Selected
+					target := persistent.ActiveProfile().Targets[targetIdx]
+					b.Lists[View].Items = utils.Map(target.ScriptPaths, func(i int, path string) string {
+						return utils.FileFromPath(path, false)
+					})
+				}
+			}
+
+		}
+	}
 	return b, nil
 }
 
@@ -131,22 +182,10 @@ func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 
 	list := lgList.New()
 
-	var selected int
-	var focused int
-	var header string
-
-	switch b.ExplMode {
-	case Schema:
-		header = "DB Schema:"
-		selected = b.SchemaList.Selected
-		focused = b.SchemaList.Focused
-		list.Items(b.SchemaList.Items)
-	case Views:
-		header = "Views:"
-		selected = b.ViewsList.Selected
-		focused = b.ViewsList.Focused
-		list.Items(b.ViewsList.Items)
-	}
+	header := headers[b.ExplMode]
+	selected := b.ActiveList.Selected
+	focused := b.ActiveList.Focused
+	list.Items(b.ActiveList.Items)
 
 	list.Enumerator(func(l lgList.Items, i int) string {
 		if i == selected {
@@ -162,11 +201,11 @@ func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 		return style.Normal
 	})
 
-	view.SetString(
+	view = view.SetString(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
 			style.Title.SetString(header).Render(),
-			list.String(),
+			utils.Ifelse(len(b.ActiveList.Items) > 0, list.String(), "...").(string),
 		),
 	)
 

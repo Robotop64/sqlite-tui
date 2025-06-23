@@ -6,7 +6,5 @@ import (
 )
 
 var Box lipgloss.Style = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(color.TextUnselected).
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(color.BoxUnselected)
