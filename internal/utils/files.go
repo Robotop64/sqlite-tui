@@ -74,6 +74,21 @@ func FileFromPath(path string, extension bool) string {
 	return filename
 }
 
+func RelativeToAbsolutePath(root string, path string) string {
+	if path[0] != '.' {
+		return path
+	}
+
+	if !strings.HasSuffix(root, string(os.PathSeparator)) {
+		root += string(os.PathSeparator)
+	}
+	if path[0:1] != ".." {
+		path = path[2:]
+	}
+	path = CleanPath(path)
+	return filepath.Join(root, path)
+}
+
 func SaveYamlFile(path string, data interface{}) error {
 	path = CleanPath(path)
 	if !CheckPath(filepath.Dir(path)) {
