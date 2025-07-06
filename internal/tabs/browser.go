@@ -1,7 +1,11 @@
 package tabs
 
 import (
+	"fmt"
+	"path/filepath"
+
 	comp "github.com/Robotop64/sqlite-tui/internal/components"
+	"github.com/Robotop64/sqlite-tui/internal/database"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
@@ -18,6 +22,7 @@ type BrowserTab struct {
 	ExplMode   ExplMode
 	ActiveList *comp.ListModel[string]
 	Lists      []comp.ListModel[string]
+	Scripts    []persistent.Script
 }
 
 type ExplMode int
@@ -64,9 +69,15 @@ func (b *BrowserTab) Setup() Tab {
 }
 
 func (b *BrowserTab) Activate() {
-	b.Lists[Target].Items = utils.Map(persistent.ActiveProfile().Targets, func(i int, t persistent.Target) string {
+	targets := persistent.ActiveProfile().Targets
+
+	b.Lists[Target].Items = utils.Map(targets, func(i int, t persistent.Target) string {
 		return t.Name
 	})
+
+	target := targets[persistent.Data.Profiles.LastTargetUsed]
+
+	selectTarget(b, target)
 }
 
 func (b *BrowserTab) View(width, height int) string {
@@ -78,10 +89,10 @@ func (b *BrowserTab) View(width, height int) string {
 		Height: height - hint_height,
 	}
 
-	// content_size := utils.Dimensions{
-	// 	Width:  width - explorer_size.Width,
-	// 	Height: height - hint_height,
-	// }
+	content_size := utils.Dimensions{
+		Width:  width - explorer_size.Width,
+		Height: height - hint_height,
+	}
 	//=========================================================================
 
 	//=Left Column=============================================================
@@ -106,7 +117,7 @@ func (b *BrowserTab) View(width, height int) string {
 	//=========================================================================
 
 	//=Content Column==========================================================
-	// right_Column := gen_editor(b, content_size).Render()
+	right_Column := gen_content(b, content_size).Render()
 	//=========================================================================
 
 	//=Hints===================================================================
@@ -127,7 +138,7 @@ func (b *BrowserTab) View(width, height int) string {
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			left_Column,
-			// right_Column,
+			right_Column,
 		),
 		hints,
 	)
@@ -147,6 +158,11 @@ func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.ActiveList = &b.Lists[b.ExplMode]
 				return b, nil
 			case "right":
+
+				if b.ExplMode == Target && len(persistent.ActiveProfile().Targets) == 0 {
+					return b, nil
+				}
+
 				b.ExplMode = min(b.ExplMode+1, View)
 				b.ActiveList = &b.Lists[b.ExplMode]
 				return b, nil
@@ -162,9 +178,8 @@ func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				case Target:
 					targetIdx := b.ActiveList.Selected
 					target := persistent.ActiveProfile().Targets[targetIdx]
-					b.Lists[View].Items = utils.Map(target.ScriptPaths, func(i int, path string) string {
-						return utils.FileFromPath(path, false)
-					})
+
+					selectTarget(b, target)
 				}
 			}
 
@@ -210,6 +225,64 @@ func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 	)
 
 	return view
+}
+
+func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
+	view := style.Box.
+		Padding(0, 1).
+		Width(dims.Width - 2).
+		Height(dims.Height - 2)
+
+	switch b.ExplMode {
+	case Target:
+		return view
+	case Schema:
+		header := "Creation Statement:"
+		body := database.ActiveSchema.CreationSQL[b.ActiveList.Selected]
+		content := lipgloss.JoinVertical(
+			lipgloss.Top,
+			style.Title.SetString(header).Render(),
+			utils.Ifelse(len(body) > 0, body, "No creation statement available").(string),
+		)
+		view = view.SetString(content)
+		return view
+	case View:
+	}
+
+	// content = content.SetString(
+	// 	lipgloss.JoinVertical(
+	// 		lipgloss.Top,
+	// 		style.Title.SetString("Content").Render(),
+	// 		utils.Ifelse(len(b.ActiveList.Items) > 0, b.ActiveList.String(), "...").(string),
+	// 	),
+	// )
+
+	return style.Box
+}
+
+func selectTarget(b *BrowserTab, target persistent.Target) {
+	database.SetTarget(persistent.ActiveProfilePath(), target)
+	if err := database.SetSchema(); err != nil {
+		fmt.Println("Error setting schema:", err)
+	}
+	b.Lists[Schema].Items = utils.Map(database.ActiveSchema.TableNames, func(i int, name string) string {
+		return name
+	})
+
+	b.Scripts = make([]persistent.Script, len(target.ScriptPaths))
+	for i, path := range target.ScriptPaths {
+		path = utils.RelativeToAbsolutePath(filepath.Dir(persistent.ActiveProfilePath()), path)
+		script, err := persistent.LoadScript(path)
+		if err != nil {
+			fmt.Printf("Error loading script [%s]: %v\n", path, err)
+			continue
+		}
+		b.Scripts[i] = script
+	}
+
+	b.Lists[View].Items = utils.Map(b.Scripts, func(i int, script persistent.Script) string {
+		return script.MetaData.Name
+	})
 }
 
 // func loadTable(t *lgTable.Table, dims *utils.Dimensions) {
