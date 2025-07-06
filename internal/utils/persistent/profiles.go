@@ -15,7 +15,6 @@ type Target struct {
 
 type Profile struct {
 	Name    string   `mapstructure:"Name" yaml:"Name"`
-	Path    string   `mapstructure:"Path" yaml:"Path"`
 	Targets []Target `mapstructure:"Targets" yaml:"Targets"`
 	Note    string   `mapstructure:"Note" yaml:"Note"`
 }
@@ -25,7 +24,6 @@ var Profiles []*Profile
 func DefProfile() Profile {
 	return Profile{
 		Name:    "New Profile",
-		Path:    "",
 		Targets: []Target{},
 		Note:    "",
 	}
@@ -61,8 +59,6 @@ func CreateProfile(path string) (*Profile, error) {
 
 	profile := DefProfile()
 
-	profile.Path = path
-
 	if err := SaveProfile(&profile, path); err != nil {
 		return nil, fmt.Errorf("error saving new profile: %v", err)
 	}
@@ -86,9 +82,34 @@ func LoadProfiles() {
 
 func ActiveProfile() *Profile {
 
-	if Data.Profiles.LastUsed < 0 || Data.Profiles.LastUsed >= len(Profiles) {
+	if Data.Profiles.LastProfileUsed < 0 || Data.Profiles.LastProfileUsed >= len(Profiles) {
 		return nil
 	}
 
-	return Profiles[Data.Profiles.LastUsed]
+	return Profiles[Data.Profiles.LastProfileUsed]
+}
+
+func ActiveProfilePath() string {
+	prof := ActiveProfile()
+	if prof == nil {
+		return ""
+	}
+	return ProfilePath(prof)
+}
+
+func ProfilePath(profile *Profile) string {
+	if profile == nil {
+		return ""
+	}
+
+	for i := range len(Profiles) {
+		iter_profile := Profiles[i]
+		path := Data.Profiles.Paths[i]
+
+		if iter_profile == profile {
+			return path
+		}
+	}
+
+	return ""
 }

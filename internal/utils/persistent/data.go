@@ -3,13 +3,15 @@ package persistent
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 )
 
 type ProfileCat struct {
-	Paths    []string `mapstructure:"Paths" yaml:"Paths"`
-	LastUsed int      `mapstructure:"Last_used" yaml:"Last_used"`
+	Paths           []string `mapstructure:"Paths" yaml:"Paths"`
+	LastProfileUsed int      `mapstructure:"Last_Profile_Used" yaml:"Last_Profile_Used"`
+	LastTargetUsed  int      `mapstructure:"Last_Target_Used" yaml:"Last_Target_Used"`
 }
 
 type DataType struct {
@@ -21,8 +23,8 @@ var Data DataType
 func DefData() DataType {
 	return DataType{
 		Profiles: ProfileCat{
-			Paths:    []string{},
-			LastUsed: 0,
+			Paths:           []string{},
+			LastProfileUsed: 0,
 		},
 	}
 }
@@ -30,7 +32,7 @@ func DefData() DataType {
 func LoadData() error {
 	dataLocation := utils.DataLoc()
 	if !utils.CheckPath(dataLocation) {
-		if err := os.MkdirAll(dataLocation, os.ModePerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dataLocation), os.ModePerm); err != nil {
 			return fmt.Errorf("error creating data directory: %v", err)
 		}
 		Data = DefData()
