@@ -39,7 +39,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 	fmt.Println("Configuration saved.")
 		case "ctrl+right":
 			prev_active_tab := m.ActiveTab
-			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
+			next_tab := min(m.ActiveTab+1, len(m.Tabs)-1)
+
+			if m.Tabs[next_tab].GetName() == "Browser" && len(persistent.Data.Profiles.Paths) == 0 {
+				return m, nil
+			}
+
+			m.ActiveTab = next_tab
 			if m.ActiveTab != prev_active_tab {
 				m.Tabs[m.ActiveTab].Activate()
 			}
