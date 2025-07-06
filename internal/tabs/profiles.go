@@ -70,7 +70,7 @@ func (b *ProfileTab) Setup() Tab {
 
 func (b *ProfileTab) Activate() {
 
-	b.IdxSelected = persistent.Data.Profiles.LastUsed
+	b.IdxSelected = persistent.Data.Profiles.LastProfileUsed
 
 	if len(persistent.Profiles) > 0 {
 
@@ -193,7 +193,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 					fmt.Println("Error unmarshalling profile data:", err)
 					return b, nil
 				}
-				if err := persistent.SaveProfile(profile, profile.Path); err != nil {
+				if err := persistent.SaveProfile(profile, persistent.ProfilePath(profile)); err != nil {
 					fmt.Println("Error saving profile:", err)
 					return b, nil
 				}
@@ -220,7 +220,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
-				persistent.Data.Profiles.LastUsed = b.IdxFocus
+				persistent.Data.Profiles.LastProfileUsed = b.IdxFocus
 				b.IdxSelected = b.IdxFocus
 				profile := persistent.ActiveProfile()
 				data, _ := yaml.Marshal(profile)
