@@ -173,13 +173,16 @@ func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.ActiveList.Focused = min(b.ActiveList.Focused+1, len(b.ActiveList.Items)-1)
 				return b, nil
 			case "enter":
-				b.ActiveList.Selected = b.ActiveList.Focused
 				switch b.ExplMode {
 				case Target:
-					targetIdx := b.ActiveList.Selected
+					targetIdx := b.ActiveList.Focused
 					target := persistent.ActiveProfile().Targets[targetIdx]
 
-					selectTarget(b, target)
+					if err := selectTarget(b, target); err == nil {
+						b.ActiveList.Selected = b.ActiveList.Focused
+					}
+				default:
+					b.ActiveList.Selected = b.ActiveList.Focused
 				}
 			}
 
@@ -260,8 +263,12 @@ func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 	return style.Box
 }
 
-func selectTarget(b *BrowserTab, target persistent.Target) {
-	database.SetTarget(persistent.ActiveProfilePath(), target)
+func selectTarget(b *BrowserTab, target persistent.Target) error {
+	if dberr := database.SetTarget(persistent.ActiveProfilePath(), target); dberr != nil {
+		fmt.Println("Error setting target:", dberr)
+		return dberr
+	}
+
 	if err := database.SetSchema(); err != nil {
 		fmt.Println("Error setting schema:", err)
 	}
@@ -283,6 +290,7 @@ func selectTarget(b *BrowserTab, target persistent.Target) {
 	b.Lists[View].Items = utils.Map(b.Scripts, func(i int, script persistent.Script) string {
 		return script.MetaData.Name
 	})
+	return nil
 }
 
 // func loadTable(t *lgTable.Table, dims *utils.Dimensions) {
