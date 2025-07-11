@@ -20,7 +20,7 @@ import (
 
 type ProfileTab struct {
 	name      string
-	ElemFocus UiFocus
+	ElemFocus utils.FocusElement
 
 	IdxFocus    int
 	IdxSelected int
@@ -29,12 +29,10 @@ type ProfileTab struct {
 	ViewProfile bubTxtEdit.Model
 }
 
-type UiFocus int
-
-const (
-	TxtInput UiFocus = iota
-	TxtEdit
-	ProfileList
+var (
+	ProfileList,
+	TxtInput,
+	TxtEdit utils.FocusElement
 )
 
 func (b *ProfileTab) GetName() string {
@@ -54,6 +52,10 @@ func (b *ProfileTab) Init() tea.Cmd {
 
 func (b *ProfileTab) Setup() Tab {
 	b.name = "Profiles"
+
+	ProfileList.Right = &TxtEdit
+	TxtEdit.Left = &ProfileList
+
 	b.ElemFocus = ProfileList
 
 	txtinput := bubTxtIn.New()
@@ -64,6 +66,8 @@ func (b *ProfileTab) Setup() Tab {
 
 	txtedit := bubTxtEdit.New()
 	b.ViewProfile = txtedit
+
+	AddLog(b.name, "ProfileTab initialized!")
 
 	return b
 }
@@ -159,7 +163,8 @@ func (b *ProfileTab) View(width, height int) string {
 			utils.Center, utils.Center,
 		)
 		if err != nil {
-			return fmt.Sprintf("Error overlaying popup: %v", err)
+			AddLog(b.name, fmt.Sprintf("Error overlaying popup: %v", err))
+			// return fmt.Sprintf("Error overlaying popup: %v", err)
 		}
 		return overlay
 	}
@@ -173,12 +178,12 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "alt+left":
-			b.ElemFocus = ProfileList
-			b.ViewProfile.Blur()
-			return b, nil
-		case "alt+right":
-			b.ElemFocus = TxtEdit
+		case "alt+left", "alt+right", "alt+up", "alt+down":
+			dir := msg.String()[4:]
+			b.ElemFocus = *b.ElemFocus.Move(dir)
+			if b.ElemFocus != TxtEdit {
+				b.ViewProfile.Blur()
+			}
 			return b, nil
 		case "ctrl+s":
 			data := b.ViewProfile.Value()
