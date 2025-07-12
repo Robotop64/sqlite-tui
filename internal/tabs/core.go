@@ -36,6 +36,7 @@ func (m Core) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "ctrl+q":
 			persistent.SaveConfig()
 			persistent.SaveData()
+			AddLog(m.Tabs[m.TabFocus].GetName(), "[CORE] : Saving data and quitting")
 			return m, tea.Quit
 		case "ctrl+up", "ctrl+down", "ctrl+left", "ctrl+right":
 			dir := msg.String()[5:]
@@ -64,7 +65,9 @@ func (m Core) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if next != curr {
 				m.TabFocus = next
-				nextTab.Activate()
+				if *curr != Logs && *curr != Hints {
+					nextTab.Activate()
+				}
 			}
 			return m, nil
 		default:

@@ -67,7 +67,7 @@ func (b *ProfileTab) Setup() Tab {
 	txtedit := bubTxtEdit.New()
 	b.ViewProfile = txtedit
 
-	AddLog(b.name, "ProfileTab initialized!")
+	AddLog(b.name, "[STATUS] : Initialized!")
 
 	return b
 }
@@ -82,12 +82,13 @@ func (b *ProfileTab) Activate() {
 		data, _ := yaml.Marshal(profile)
 		b.ViewProfile.SetValue(string(data))
 	}
+
+	AddLog(b.name, "[STATUS] : Activated")
+	AddLog(b.name, fmt.Sprintf("[PROFILE] : %s", persistent.ActiveProfile().Name))
 }
 
 func (b *ProfileTab) View(width, height int) string {
 	//=Calculations============================================================
-	hint_height := 2
-
 	popup_size := utils.Dimensions{
 		Width:  width * 3 / 5,
 		Height: 0,
@@ -95,12 +96,12 @@ func (b *ProfileTab) View(width, height int) string {
 
 	explorer_size := utils.Dimensions{
 		Width:  width / 5,
-		Height: height - hint_height,
+		Height: height,
 	}
 
 	content_size := utils.Dimensions{
 		Width:  width - explorer_size.Width,
-		Height: height - hint_height,
+		Height: height,
 	}
 	//=========================================================================
 
@@ -132,15 +133,15 @@ func (b *ProfileTab) View(width, height int) string {
 	//=========================================================================
 
 	//=Hints===================================================================
-	hints := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		"quit:\nctrl+c|q", "│\n│",
-		"save:\nctrl+s", "│\n│",
-		"tabs:\nalt+(</>)", "│\n│",
-		"profiles:\n   ↑/↓", "│\n│",
-		"add:\n +", "│\n│",
-		"remove:\n   -", "│\n│",
-	)
+	// hints := lipgloss.JoinHorizontal(
+	// 	lipgloss.Top,
+	// 	"quit:\nctrl+c|q", "│\n│",
+	// 	"save:\nctrl+s", "│\n│",
+	// 	"tabs:\nalt+(</>)", "│\n│",
+	// 	"profiles:\n   ↑/↓", "│\n│",
+	// 	"add:\n +", "│\n│",
+	// 	"remove:\n   -", "│\n│",
+	// )
 	//=========================================================================
 
 	//=Layout==================================================================
@@ -151,7 +152,7 @@ func (b *ProfileTab) View(width, height int) string {
 			left_Column,
 			right_Column,
 		),
-		hints,
+		// hints,
 	)
 
 	if !(b.ElemFocus == TxtInput) {
@@ -163,8 +164,7 @@ func (b *ProfileTab) View(width, height int) string {
 			utils.Center, utils.Center,
 		)
 		if err != nil {
-			AddLog(b.name, fmt.Sprintf("Error overlaying popup: %v", err))
-			// return fmt.Sprintf("Error overlaying popup: %v", err)
+			AddLog(b.name, fmt.Sprintf("[ERROR] : Overlaying popup: %v", err))
 		}
 		return overlay
 	}
@@ -186,6 +186,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			}
 			return b, nil
 		case "ctrl+s":
+			AddLog(b.name, "[ACTION] : Saving profile data...")
 			data := b.ViewProfile.Value()
 			if !(len(data) == 0) {
 				profile := persistent.ActiveProfile()
@@ -195,11 +196,11 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				}
 
 				if err := yaml.Unmarshal([]byte(data), profile); err != nil {
-					fmt.Println("Error unmarshalling profile data:", err)
+					AddLog(b.name, fmt.Sprintf("[ERROR] : Unmarshalling profile data: %v", err))
 					return b, nil
 				}
 				if err := persistent.SaveProfile(profile, persistent.ProfilePath(profile)); err != nil {
-					fmt.Println("Error saving profile:", err)
+					AddLog(b.name, fmt.Sprintf("[ERROR] : Saving profile: %v", err))
 					return b, nil
 				}
 			}
@@ -219,17 +220,22 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				b.ElemFocus = TxtInput
 				return b, nil
 			case "-":
+				AddLog(b.name, fmt.Sprintf("[ACTION] : Removed profile: %s", persistent.Profiles[b.IdxFocus].Name))
 				persistent.Profiles = utils.RemoveIdx(persistent.Profiles, b.IdxFocus)
 				persistent.Data.Profiles.Paths = utils.RemoveIdx(persistent.Data.Profiles.Paths, b.IdxFocus)
 
 				b.IdxFocus = max(b.IdxFocus-1, 0)
 				return b, nil
 			case "enter":
+				AddLog(b.name, fmt.Sprintf("[ACTION] : Selected profile: %s", persistent.Profiles[b.IdxFocus].Name))
 				persistent.Data.Profiles.LastProfileUsed = b.IdxFocus
 				b.IdxSelected = b.IdxFocus
 				profile := persistent.ActiveProfile()
-				data, _ := yaml.Marshal(profile)
-				b.ViewProfile.SetValue(string(data))
+				if data, err := yaml.Marshal(profile); err != nil {
+					AddLog(b.name, fmt.Sprintf("[ERROR] : Marshalling profile data: %v", err))
+				} else {
+					b.ViewProfile.SetValue(string(data))
+				}
 				return b, nil
 			case "c":
 				if len(persistent.Profiles) > 0 && b.IdxFocus < len(persistent.Profiles) {
@@ -243,6 +249,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			b.AddProfile.Focus()
 			switch msg.String() {
 			case "esc":
+				AddLog(b.name, "[ACTION] : Add Profile prompt cancelled")
 				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()
 				return b, nil
@@ -250,6 +257,7 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				raw_path := b.AddProfile.Value()
 				if raw_path == "" {
 					b.ElemFocus = ProfileList
+					AddLog(b.name, "[ACTION] : Add Profile prompt cancelled: No path provided")
 					return b, nil
 				}
 
@@ -267,17 +275,21 @@ func (b *ProfileTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 					if profile, err = persistent.CreateProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
+						AddLog(b.name, fmt.Sprintf("[ERROR] : Creating profile: %v", err))
 						return b, nil
 					}
 				} else {
 					if profile, err = persistent.LoadProfile(path); err != nil {
 						b.ElemFocus = ProfileList
 						b.AddProfile.Reset()
+						AddLog(b.name, fmt.Sprintf("[ERROR] : Loading profile: %v", err))
 						return b, nil
 					}
 				}
+
 				persistent.Profiles = append(persistent.Profiles, profile)
 				persistent.Data.Profiles.Paths = append(persistent.Data.Profiles.Paths, path)
+				AddLog(b.name, fmt.Sprintf("[ACTION] : Added profile: %s", profile.Name))
 
 				b.ElemFocus = ProfileList
 				b.AddProfile.Reset()

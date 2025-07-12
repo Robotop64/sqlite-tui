@@ -1,7 +1,6 @@
 package tabs
 
 import (
-	"fmt"
 	"time"
 
 	style "github.com/Robotop64/sqlite-tui/internal/style"
@@ -90,8 +89,6 @@ func (t *LogTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 
 		}
 	}
-	fmt.Println(logMap[t.SelectedTab].Size)
-	AddLog("Profiles", "Test Log")
 	return t, nil
 }
 

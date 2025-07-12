@@ -65,6 +65,8 @@ func (b *BrowserTab) Setup() Tab {
 	b.Lists = make([]comp.ListModel[string], 3)
 	b.ActiveList = &b.Lists[0]
 
+	AddLog(b.name, "[STATUS] : Initialized")
+
 	return b
 }
 
@@ -77,21 +79,21 @@ func (b *BrowserTab) Activate() {
 
 	target := targets[persistent.Data.Profiles.LastTargetUsed]
 
+	AddLog(b.name, "[STATUS] : Activated")
+	AddLog(b.name, fmt.Sprintf("[TARGET] : %s", target.Name))
 	selectTarget(b, target)
 }
 
 func (b *BrowserTab) View(width, height int) string {
 	//=Calculations============================================================
-	hint_height := 2
-
 	explorer_size := utils.Dimensions{
 		Width:  width / 5,
-		Height: height - hint_height,
+		Height: height,
 	}
 
 	content_size := utils.Dimensions{
 		Width:  width - explorer_size.Width,
-		Height: height - hint_height,
+		Height: height,
 	}
 	//=========================================================================
 
@@ -121,15 +123,15 @@ func (b *BrowserTab) View(width, height int) string {
 	//=========================================================================
 
 	//=Hints===================================================================
-	hints := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		"quit:\nctrl+c|q", "│\n│",
-		"save:\nctrl+s", "│\n│",
-		"tabs:\nalt+(</>)", "│\n│",
-		"profiles:\n   ↑/↓", "│\n│",
-		"add:\n +", "│\n│",
-		"remove:\n   -", "│\n│",
-	)
+	// hints := lipgloss.JoinHorizontal(
+	// 	lipgloss.Top,
+	// 	"quit:\nctrl+c|q", "│\n│",
+	// 	"save:\nctrl+s", "│\n│",
+	// 	"tabs:\nalt+(</>)", "│\n│",
+	// 	"profiles:\n   ↑/↓", "│\n│",
+	// 	"add:\n +", "│\n│",
+	// 	"remove:\n   -", "│\n│",
+	// )
 	//=========================================================================
 
 	//=Layout==================================================================
@@ -140,7 +142,7 @@ func (b *BrowserTab) View(width, height int) string {
 			left_Column,
 			right_Column,
 		),
-		hints,
+		// hints,
 	)
 
 	return layout
@@ -155,15 +157,17 @@ func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 			switch msg.String() {
 			case "left":
 				b.ExplMode = max(b.ExplMode-1, Target)
+				AddLog(b.name, fmt.Sprintf("[MODE] : %s", headers[b.ExplMode]))
 				b.ActiveList = &b.Lists[b.ExplMode]
 				return b, nil
 			case "right":
 
 				if b.ExplMode == Target && len(persistent.ActiveProfile().Targets) == 0 {
+					AddLog(b.name, "[ERROR] : No targets available, blocking switch")
 					return b, nil
 				}
-
 				b.ExplMode = min(b.ExplMode+1, View)
+				AddLog(b.name, fmt.Sprintf("[MODE] : %s", headers[b.ExplMode]))
 				b.ActiveList = &b.Lists[b.ExplMode]
 				return b, nil
 			case "up":
@@ -177,6 +181,7 @@ func (b *BrowserTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 				case Target:
 					targetIdx := b.ActiveList.Focused
 					target := persistent.ActiveProfile().Targets[targetIdx]
+					AddLog(b.name, fmt.Sprintf("[TARGET] : %s", target.Name))
 
 					if err := selectTarget(b, target); err == nil {
 						b.ActiveList.Selected = b.ActiveList.Focused
@@ -265,12 +270,12 @@ func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 
 func selectTarget(b *BrowserTab, target persistent.Target) error {
 	if dberr := database.SetTarget(persistent.ActiveProfilePath(), target); dberr != nil {
-		fmt.Println("Error setting target:", dberr)
+		AddLog(b.name, fmt.Sprintf("[ERROR] : Updating target: %v", dberr))
 		return dberr
 	}
 
 	if err := database.SetSchema(); err != nil {
-		fmt.Println("Error setting schema:", err)
+		AddLog(b.name, fmt.Sprintf("[ERROR] : Updating schema: %v", err))
 	}
 	b.Lists[Schema].Items = utils.Map(database.ActiveSchema.TableNames, func(i int, name string) string {
 		return name
@@ -281,7 +286,7 @@ func selectTarget(b *BrowserTab, target persistent.Target) error {
 		path = utils.RelativeToAbsolutePath(filepath.Dir(persistent.ActiveProfilePath()), path)
 		script, err := persistent.LoadScript(path)
 		if err != nil {
-			fmt.Printf("Error loading script [%s]: %v\n", path, err)
+			AddLog(b.name, fmt.Sprintf("[ERROR] :  Loading script [%s]: %v", path, err))
 			continue
 		}
 		b.Scripts[i] = script
