@@ -1,8 +1,8 @@
 package tabs
 
 import (
+	"github.com/Robotop64/sqlite-tui/internal/persistent"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
-	"github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

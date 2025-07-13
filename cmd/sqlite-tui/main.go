@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	persistent "github.com/Robotop64/sqlite-tui/internal/persistent"
 	tabs "github.com/Robotop64/sqlite-tui/internal/tabs"
-	persistent "github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

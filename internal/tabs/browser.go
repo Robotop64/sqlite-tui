@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 
 	comp "github.com/Robotop64/sqlite-tui/internal/components"
-	"github.com/Robotop64/sqlite-tui/internal/database"
+	database "github.com/Robotop64/sqlite-tui/internal/database"
+	persistent "github.com/Robotop64/sqlite-tui/internal/persistent"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
-	"github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"

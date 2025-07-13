@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Robotop64/sqlite-tui/internal/persistent"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
-	"github.com/Robotop64/sqlite-tui/internal/utils/persistent"
 
 	bubTxtEdit "github.com/charmbracelet/bubbles/textarea"
 	bubTxtIn "github.com/charmbracelet/bubbles/textinput"
