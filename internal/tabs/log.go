@@ -19,6 +19,9 @@ type Log struct {
 type LogTab struct {
 	name        string
 	SelectedTab string
+
+	Rows       int
+	ViewOffset int
 }
 
 var logMap map[string]Log = make(map[string]Log)
@@ -37,6 +40,9 @@ func (t *LogTab) Setup() Tab {
 }
 
 func (t *LogTab) Activate() {
+	if logMap[t.SelectedTab].Size > t.Rows {
+		t.ViewOffset = logMap[t.SelectedTab].Size - t.Rows
+	}
 }
 
 func (t *LogTab) View(width, height int) string {
@@ -51,10 +57,13 @@ func (t *LogTab) View(width, height int) string {
 		Bold(true).
 		Foreground(color.TextHighlight)
 
-	table := lgTable.New()
+	t.Rows = height - 3 - 4
+
+	table := lgTable.New().
+		Height(height - 3)
 
 	table = table.Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle()).
+		BorderStyle(lipgloss.NewStyle().Foreground(color.BoxUnselected)).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			switch {
 			case row == lgTable.HeaderRow:
@@ -71,6 +80,15 @@ func (t *LogTab) View(width, height int) string {
 		entry := logMap[t.SelectedTab]
 		table = table.Row(entry.Timestamps[i].Format("15:04:05"), entry.Messages[i])
 	}
+	// fill table to span the entire height
+	if logMap[t.SelectedTab].Size < t.Rows {
+		diff := t.Rows - logMap[t.SelectedTab].Size
+		for i := 0; i < diff; i++ {
+			table = table.Row("", "")
+		}
+	}
+
+	table = table.Offset(t.ViewOffset)
 
 	layout := lipgloss.JoinVertical(
 		lipgloss.Top,
@@ -86,9 +104,17 @@ func (t *LogTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-
+		case "up":
+			if t.ViewOffset > 0 {
+				t.ViewOffset--
+			}
+		case "down":
+			if t.ViewOffset+t.Rows < logMap[t.SelectedTab].Size {
+				t.ViewOffset++
+			}
 		}
 	}
+
 	return t, nil
 }
 
