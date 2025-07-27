@@ -9,6 +9,7 @@ import (
 	persistent "github.com/Robotop64/sqlite-tui/internal/persistent"
 	style "github.com/Robotop64/sqlite-tui/internal/style"
 	color "github.com/Robotop64/sqlite-tui/internal/style/color"
+	ui "github.com/Robotop64/sqlite-tui/internal/ui"
 	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,6 +24,7 @@ type BrowserTab struct {
 	ActiveList *comp.ListModel[string]
 	Lists      []comp.ListModel[string]
 	Scripts    []persistent.Script
+	Layout     ui.Layout
 }
 
 type ExplMode int
@@ -60,10 +62,42 @@ func (b *BrowserTab) Init() tea.Cmd {
 
 func (b *BrowserTab) Setup() Tab {
 	b.name = "Browser"
+
 	b.ElemFocus = Explorer
 	b.ExplMode = Target
+
 	b.Lists = make([]comp.ListModel[string], 3)
 	b.ActiveList = &b.Lists[0]
+
+	b.Layout = ui.Layout{}
+
+	//this is later in the scripting stuff
+	table := &ui.TableWidget{
+		Title:   "Test Table",
+		Headers: []string{"A", "B", "C"},
+		Columns: []any{
+			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
+			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
+			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
+		},
+		// Headers: []string{"ID", "Name", "Address", "Status", "Actions", "Notes", "Tags", "Created At", "Updated At", "Deleted At", "Archived", "Priority", "Category", "Assigned To", "Due Date", "Completed", "Progress", "Rating", "Feedback", "Attachments", "Comments", "Links", "Related Items", "Custom Field 1", "Custom Field 2", "Custom Field 3"},
+		// Columns: []any{
+		// 	ui.Column[int]{Cells: []int{1, 2, 3, 4, 5}},
+		// 	ui.Column[string]{Cells: []string{"Alice", "Bob", "Charlie", "David", "Eve"}},
+		// 	ui.Column[string]{Cells: []string{"123 Main St", "456 Elm St", "789 Oak St", "321 Pine St", "654 Maple St"}},
+		// 	ui.Column[string]{Cells: []string{"Completed", "Pending", "Cancelled", "In Progress", "Completed"}},
+		// },
+		HorizViewPort: ui.Viewport{
+			Offset: 0,
+		},
+		Style: ui.TableStyle{
+			Title:      false,
+			Scrollbars: [2]bool{false, false},
+		},
+	}
+	b.Layout.Widgets = append(b.Layout.Widgets, table)
+	b.Layout.Positions = append(b.Layout.Positions, ui.Position{X: 0, Y: 0})
+	b.Layout.Dimensions = append(b.Layout.Dimensions, ui.Dimensions{Width: 80, Height: 20})
 
 	AddLog(b.name, "[STATUS] : Initialized")
 
@@ -237,7 +271,7 @@ func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 
 func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 	view := style.Box.
-		Padding(0, 1).
+		// Padding(0, 1).
 		Width(dims.Width - 2).
 		Height(dims.Height - 2)
 
@@ -255,6 +289,18 @@ func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 		view = view.SetString(content)
 		return view
 	case View:
+
+		table := b.Layout.Widgets[0].(*ui.TableWidget)
+
+		table.Style.BaseStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder())
+
+		table.Style.MaxDimensions = ui.Dimensions{
+			Width:  dims.Width - 2,
+			Height: dims.Height - 4,
+		}
+
+		return view.SetString(b.Layout.Render())
 	}
 
 	// content = content.SetString(
