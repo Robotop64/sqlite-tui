@@ -40,13 +40,39 @@ import (
 	"fmt"
 	"os"
 
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2"
+	FApp "fyne.io/fyne/v2/app"
+	FContainer "fyne.io/fyne/v2/container"
+	FWidget "fyne.io/fyne/v2/widget"
 
 	"SQLite-GUI/internal/persistent"
 )
 
 func main() {
+	setup()
+
+	app := FApp.New()
+	window := app.NewWindow("SQLite-GUI")
+
+	tabs := FContainer.NewAppTabs(
+		FContainer.NewTabItem("Settings", FWidget.NewLabel("Settings content")),
+		FContainer.NewTabItem("Profiles", genProfileTab()),
+		FContainer.NewTabItem("Browser", FWidget.NewLabel("Browser content")),
+	)
+
+	//tabs.Append(container.NewTabItemWithIcon("Home", theme.HomeIcon(), widget.NewLabel("Home tab")))
+
+	tabs.SetTabLocation(FContainer.TabLocationTop)
+
+	window.SetContent(tabs)
+	window.Resize(fyne.NewSize(800, 600))
+	window.SetMaster()
+	window.ShowAndRun()
+
+	shutdown()
+}
+
+func setup() {
 	// load main config
 	if err := persistent.LoadConfig(); err != nil {
 		fmt.Println("Error loading config:", err)
@@ -58,10 +84,12 @@ func main() {
 	}
 	// load profiles
 	persistent.LoadProfiles()
+}
 
-	a := app.New()
-	w := a.NewWindow("Hello World")
+func shutdown() {
 
-	w.SetContent(widget.NewLabel("Hello World!"))
-	w.ShowAndRun()
+}
+
+func genProfileTab() fyne.CanvasObject {
+	return FWidget.NewLabel("Profile content")
 }
