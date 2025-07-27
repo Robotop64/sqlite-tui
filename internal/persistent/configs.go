@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	utils "github.com/Robotop64/sqlite-tui/internal/utils"
+	utils "SQLite-GUI/internal/utils"
 )
 
 type Config struct {

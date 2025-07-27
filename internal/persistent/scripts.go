@@ -5,8 +5,9 @@ import (
 	"os"
 	"strings"
 
-	utils "github.com/Robotop64/sqlite-tui/internal/utils"
 	yaml "gopkg.in/yaml.v3"
+
+	utils "SQLite-GUI/internal/utils"
 )
 
 type MetaData struct {

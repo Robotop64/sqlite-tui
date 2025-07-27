@@ -7,8 +7,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	persistent "github.com/Robotop64/sqlite-tui/internal/persistent"
-	"github.com/Robotop64/sqlite-tui/internal/utils"
+	persistent "SQLite-GUI/internal/persistent"
+	utils "SQLite-GUI/internal/utils"
 )
 
 // "github.com/mattn/go-sqlite3"
