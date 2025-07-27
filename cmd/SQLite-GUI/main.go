@@ -43,9 +43,10 @@ import (
 	"fyne.io/fyne/v2"
 	FApp "fyne.io/fyne/v2/app"
 	FContainer "fyne.io/fyne/v2/container"
-	FWidget "fyne.io/fyne/v2/widget"
 
+	"SQLite-GUI/internal/content"
 	"SQLite-GUI/internal/persistent"
+	"SQLite-GUI/internal/utils"
 )
 
 func main() {
@@ -54,10 +55,17 @@ func main() {
 	app := FApp.New()
 	window := app.NewWindow("SQLite-GUI")
 
+	tabCore := &content.TabCore{}
+	tabCore.Tabs = append(tabCore.Tabs, &content.ProfileTab{})
+
+	for _, tab := range tabCore.Tabs {
+		tab.Init()
+	}
+
 	tabs := FContainer.NewAppTabs(
-		FContainer.NewTabItem("Settings", FWidget.NewLabel("Settings content")),
-		FContainer.NewTabItem("Profiles", genProfileTab()),
-		FContainer.NewTabItem("Browser", FWidget.NewLabel("Browser content")),
+		utils.Map(tabCore.Tabs, func(i int, tab content.Tab) *FContainer.TabItem {
+			return tab.GenerateContent()
+		})...,
 	)
 
 	//tabs.Append(container.NewTabItemWithIcon("Home", theme.HomeIcon(), widget.NewLabel("Home tab")))
@@ -88,8 +96,4 @@ func setup() {
 
 func shutdown() {
 
-}
-
-func genProfileTab() fyne.CanvasObject {
-	return FWidget.NewLabel("Profile content")
 }
