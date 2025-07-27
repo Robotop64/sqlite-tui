@@ -73,31 +73,31 @@ func (b *BrowserTab) Setup() Tab {
 
 	//this is later in the scripting stuff
 	table := &ui.TableWidget{
-		Title:   "Test Table",
-		Headers: []string{"A", "B", "C"},
-		Columns: []any{
-			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
-			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
-			ui.Column[string]{Cells: []string{" ", " ", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}},
-		},
-		// Headers: []string{"ID", "Name", "Address", "Status", "Actions", "Notes", "Tags", "Created At", "Updated At", "Deleted At", "Archived", "Priority", "Category", "Assigned To", "Due Date", "Completed", "Progress", "Rating", "Feedback", "Attachments", "Comments", "Links", "Related Items", "Custom Field 1", "Custom Field 2", "Custom Field 3"},
-		// Columns: []any{
-		// 	ui.Column[int]{Cells: []int{1, 2, 3, 4, 5}},
-		// 	ui.Column[string]{Cells: []string{"Alice", "Bob", "Charlie", "David", "Eve"}},
-		// 	ui.Column[string]{Cells: []string{"123 Main St", "456 Elm St", "789 Oak St", "321 Pine St", "654 Maple St"}},
-		// 	ui.Column[string]{Cells: []string{"Completed", "Pending", "Cancelled", "In Progress", "Completed"}},
-		// },
+		Title: "Test Table",
 		HorizViewPort: ui.Viewport{
 			Offset: 0,
+			Size:   5,
+			Mode:   ui.ViewportNormal,
+		},
+		VertViewPort: ui.Viewport{
+			Offset: 10,
 		},
 		Style: ui.TableStyle{
 			Title:      false,
 			Scrollbars: [2]bool{false, false},
 		},
 	}
+	table.SetHeaders("ID", "Name", "Address", "Status", "Actions", "Notes", "Tags", "Created At", "Updated At", "Deleted At", "Archived", "Priority", "Category", "Assigned To", "Due Date", "Completed", "Progress", "Rating", "Feedback", "Attachments", "Comments", "Links", "Related Items", "Custom Field 1", "Custom Field 2", "Custom Field 3")
+	table.SetColumns(
+		[]any{
+			ui.Column[int]{Cells: []int{1, 2, 3, 4, 5}},
+			ui.Column[string]{Cells: []string{"Alice", "Bob", "Charlie", "David", "Eve"}},
+			ui.Column[string]{Cells: []string{"123 Main St", "456 Elm St", "789 Oak St", "321 Pine St", "654 Maple St"}},
+			ui.Column[string]{Cells: []string{"Completed", "Pending", "Cancelled", "In Progress", "Completed"}},
+		},
+	)
+
 	b.Layout.Widgets = append(b.Layout.Widgets, table)
-	b.Layout.Positions = append(b.Layout.Positions, ui.Position{X: 0, Y: 0})
-	b.Layout.Dimensions = append(b.Layout.Dimensions, ui.Dimensions{Width: 80, Height: 20})
 
 	AddLog(b.name, "[STATUS] : Initialized")
 
@@ -271,7 +271,7 @@ func gen_explorer(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 
 func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 	view := style.Box.
-		// Padding(0, 1).
+		Padding(0, 1).
 		Width(dims.Width - 2).
 		Height(dims.Height - 2)
 
@@ -296,20 +296,12 @@ func gen_content(b *BrowserTab, dims utils.Dimensions) lipgloss.Style {
 			Border(lipgloss.RoundedBorder())
 
 		table.Style.MaxDimensions = ui.Dimensions{
-			Width:  dims.Width - 2,
-			Height: dims.Height - 4,
+			Width:  dims.Width - 4,
+			Height: dims.Height - 2,
 		}
 
 		return view.SetString(b.Layout.Render())
 	}
-
-	// content = content.SetString(
-	// 	lipgloss.JoinVertical(
-	// 		lipgloss.Top,
-	// 		style.Title.SetString("Content").Render(),
-	// 		utils.Ifelse(len(b.ActiveList.Items) > 0, b.ActiveList.String(), "...").(string),
-	// 	),
-	// )
 
 	return style.Box
 }
