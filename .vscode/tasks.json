@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+        "label": "run (silent)",
+        "type": "shell",
+        "command": "go run .",
+        "group": "none",
+        "options": {
+            "cwd": "${workspaceFolder}/cmd/SQLite-GUI"
+        },
+        "presentation": {
+            "echo": true,
+            "reveal": "silent",
+            "focus": false,
+            "panel": "shared",
+            "showReuseMessage": true,
+            "clear": true
+        }
+    },
+    {
+        "label": "run",
+        "type": "shell",
+        "command": "go run .",
+        "group": "none",
+        "options": {
+            "cwd": "${workspaceFolder}/cmd/SQLite-GUI"
+        },
+        "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "shared",
+            "showReuseMessage": true,
+            "clear": true
+        }
+    },
+    {
+        "label": "build",
+        "type": "shell",
+        "command": "go build .",
+        "group": "none",
+        "options": {
+            "cwd": "${workspaceFolder}/cmd/SQLite-GUI"
+        }
+    }
+]
+}
