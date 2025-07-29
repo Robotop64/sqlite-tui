@@ -40,58 +40,30 @@ import (
 	"fmt"
 	"os"
 
-	"fyne.io/fyne/v2"
-	FApp "fyne.io/fyne/v2/app"
-	FContainer "fyne.io/fyne/v2/container"
-
-	"SQLite-GUI/internal/content"
-	"SQLite-GUI/internal/persistent"
-	"SQLite-GUI/internal/utils"
+	Content "SQLite-GUI/internal/content"
+	Persistent "SQLite-GUI/internal/persistent"
 )
 
 func main() {
 	setup()
 
-	app := FApp.New()
-	window := app.NewWindow("SQLite-GUI")
-
-	tabCore := &content.TabCore{}
-	tabCore.Tabs = append(tabCore.Tabs, &content.ProfileTab{})
-
-	for _, tab := range tabCore.Tabs {
-		tab.Init()
-	}
-
-	tabs := FContainer.NewAppTabs(
-		utils.Map(tabCore.Tabs, func(i int, tab content.Tab) *FContainer.TabItem {
-			return tab.GenerateContent()
-		})...,
-	)
-
-	//tabs.Append(container.NewTabItemWithIcon("Home", theme.HomeIcon(), widget.NewLabel("Home tab")))
-
-	tabs.SetTabLocation(FContainer.TabLocationTop)
-
-	window.SetContent(tabs)
-	window.Resize(fyne.NewSize(800, 600))
-	window.SetMaster()
-	window.ShowAndRun()
+	Content.Init()
 
 	shutdown()
 }
 
 func setup() {
 	// load main config
-	if err := persistent.LoadConfig(); err != nil {
+	if err := Persistent.LoadConfig(); err != nil {
 		fmt.Println("Error loading config:", err)
 		os.Exit(1)
 	}
-	if err := persistent.LoadData(); err != nil {
+	if err := Persistent.LoadData(); err != nil {
 		fmt.Println("Error loading data:", err)
 		os.Exit(1)
 	}
 	// load profiles
-	persistent.LoadProfiles()
+	Persistent.LoadProfiles()
 }
 
 func shutdown() {
