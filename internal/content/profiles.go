@@ -83,46 +83,48 @@ func addPopup() {
 		OPEN_FILE    = 2
 	)
 	actionMode := NO_SELECTION
-	selectedFile_or_Location := FBind.NewString()
-	selectedFile_or_Location.Set("No file or location selected!")
+	selected_file_or_location := FBind.NewString()
+	selected_file_or_location.Set("No file or location selected!")
 
-	cancelBtn := FWidget.NewButton("Cancel", func() {})
-	confirmBtn := FWidget.NewButton("Confirm", func() {})
-	confirmBtn.Disable()
-	confirmBtn.Importance = FWidget.HighImportance
-	confirmBtn.Refresh()
+	var dlg_form *FDialog.CustomDialog
+	var btn_selection, btn_cancel, btn_confirm *FWidget.Button
 
-	selectionTrigger := FWidget.NewButton("Select Location / File", func() {
-		var fSelector FDialog.Dialog
+	btn_selection = FWidget.NewButton("Select Location / File", func() {})
+	btn_selection.Disable()
+
+	btn_cancel = FWidget.NewButton("Cancel", func() { dlg_form.Hide() })
+
+	btn_confirm = FWidget.NewButton("Confirm", func() {})
+	btn_confirm.Disable()
+	btn_confirm.Importance = FWidget.HighImportance
+	btn_confirm.Refresh()
+
+	btn_selection.OnTapped = func() {
+		var dlg_file_selector FDialog.Dialog
 
 		switch actionMode {
 		case OPEN_FOLDER:
-			fSelector = FDialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
-				if err == nil {
-					if uri != nil {
-						selectedFile_or_Location.Set(uri.Path())
-						confirmBtn.Enable()
-					}
+			dlg_file_selector = FDialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+				if err == nil && uri != nil {
+					selected_file_or_location.Set(uri.Path())
+					btn_confirm.Enable()
 				}
 			}, *WindowHandle)
 
 		case OPEN_FILE:
-			fSelector = FDialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
-				if err == nil {
-					if reader != nil {
-						selectedFile_or_Location.Set(reader.URI().Path())
-						confirmBtn.Enable()
-						reader.Close()
-					}
+			dlg_file_selector = FDialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+				if err == nil && reader != nil {
+					selected_file_or_location.Set(reader.URI().Path())
+					btn_confirm.Enable()
+					reader.Close()
 				}
 			}, *WindowHandle)
 		}
 
 		windowSize := (*WindowHandle).Canvas().Size()
-		fSelector.Resize(fyne.NewSize(windowSize.Width*0.8, windowSize.Height*0.8))
-		fSelector.Show()
-	})
-	selectionTrigger.Disable()
+		dlg_file_selector.Resize(fyne.NewSize(windowSize.Width*0.8, windowSize.Height*0.8))
+		dlg_file_selector.Show()
+	}
 
 	formContent := FContainer.New(FLayout.NewCustomPaddedVBoxLayout(20),
 		FContainer.New(FLayout.NewCustomPaddedVBoxLayout(-5),
@@ -137,32 +139,29 @@ func addPopup() {
 				}
 				if actionMode != newMode {
 					actionMode = newMode
-					selectedFile_or_Location.Set("No file or location selected!")
-					confirmBtn.Disable()
+					selected_file_or_location.Set("No file or location selected!")
+					btn_confirm.Disable()
 				}
-				selectionTrigger.Enable()
+				btn_selection.Enable()
 			}),
 		),
-		selectionTrigger,
+		btn_selection,
 		FContainer.New(FLayout.NewCustomPaddedVBoxLayout(-10),
 			FWidget.NewLabel("Current selection:"),
-			FWidget.NewLabelWithData(selectedFile_or_Location),
+			FWidget.NewLabelWithData(selected_file_or_location),
 		),
 		FContainer.NewGridWithColumns(
 			2,
-			cancelBtn,
-			confirmBtn,
+			btn_cancel,
+			btn_confirm,
 		),
 	)
 
-	form := FDialog.NewCustomWithoutButtons(
+	dlg_form = FDialog.NewCustomWithoutButtons(
 		"Manage a new Profile",
 		formContent,
 		*WindowHandle,
 	)
-	cancelBtn.OnTapped = func() {
-		form.Hide()
-	}
 
-	form.Show()
+	dlg_form.Show()
 }
