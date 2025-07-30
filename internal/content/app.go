@@ -9,11 +9,13 @@ import (
 )
 
 var AppHandle *fyne.App
+var WindowHandle *fyne.Window
 
 func Init() {
 	app := FApp.New()
 	AppHandle = &app
 	window := app.NewWindow("SQLite-GUI")
+	WindowHandle = &window
 
 	tabCore := &TabCore{}
 	tabCore.Tabs = append(tabCore.Tabs, &ProfileTab{})
