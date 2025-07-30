@@ -3,6 +3,8 @@ package content
 import (
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
+	FBind "fyne.io/fyne/v2/data/binding"
+	FDialog "fyne.io/fyne/v2/dialog"
 	FLayout "fyne.io/fyne/v2/layout"
 	FTheme "fyne.io/fyne/v2/theme"
 	FWidget "fyne.io/fyne/v2/widget"
@@ -61,7 +63,7 @@ func (t *ProfileTab) GenerateContent() *FContainer.TabItem {
 	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {})
 	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() {})
 	saveButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDocumentSave), func() {})
-	addButton.OnTapped = func() {}
+	addButton.OnTapped = func() { addPopup() }
 	removeButton.OnTapped = func() {}
 	saveButton.OnTapped = func() {}
 	editButtons := FContainer.NewVBox(FWidget.NewSeparator(), addButton, removeButton, saveButton)
@@ -72,4 +74,77 @@ func (t *ProfileTab) GenerateContent() *FContainer.TabItem {
 	profilesPane := FContainer.NewHBox(profileList, FWidget.NewSeparator())
 	content := FContainer.NewBorder(nil, nil, profilesPane, nil, editor)
 	return FContainer.NewTabItem("Profiles", content)
+}
+
+// func listTrackedProfiles() *fyne.Container {
+// }
+
+func addPopup() {
+	const (
+		NO_SELECTION = 0
+		OPEN_FOLDER  = 1
+		OPEN_FILE    = 2
+	)
+	actionMode := NO_SELECTION
+	selectedFile_or_Location := FBind.NewString()
+	selectedFile_or_Location.Set("No file or location selected!")
+
+	selectionTrigger := FWidget.NewButton("Select Location / File", func() {
+		var fSelector FDialog.Dialog
+
+		switch actionMode {
+		case OPEN_FOLDER:
+			fSelector = FDialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+				if err == nil {
+					if uri != nil {
+						selectedFile_or_Location.Set(uri.Path())
+					}
+				}
+			}, *WindowHandle)
+
+		case OPEN_FILE:
+			fSelector = FDialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+				if err == nil {
+					if reader != nil {
+						selectedFile_or_Location.Set(reader.URI().Path())
+						reader.Close()
+					}
+				}
+			}, *WindowHandle)
+		}
+
+		windowSize := (*WindowHandle).Canvas().Size()
+		fSelector.Resize(fyne.NewSize(windowSize.Width*0.8, windowSize.Height*0.8))
+		fSelector.Show()
+	})
+	selectionTrigger.Disable()
+
+	formContent := FContainer.New(FLayout.NewCustomPaddedVBoxLayout(20),
+		FContainer.New(FLayout.NewCustomPaddedVBoxLayout(-5),
+			FWidget.NewLabel("Select Action:"),
+			FWidget.NewRadioGroup([]string{"Create a new Profile", "Track an existing Profile"}, func(selected string) {
+				switch selected {
+				case "Create a new Profile":
+					actionMode = OPEN_FOLDER
+				case "Track an existing Profile":
+					actionMode = OPEN_FILE
+				}
+				selectionTrigger.Enable()
+			}),
+		),
+		selectionTrigger,
+		FContainer.New(FLayout.NewCustomPaddedVBoxLayout(-10),
+			FWidget.NewLabel("Current selection:"),
+			FWidget.NewLabelWithData(selectedFile_or_Location),
+		),
+	)
+
+	form := FDialog.NewCustomConfirm(
+		"Manage a new Profile", "Confirm", "Cancel",
+		formContent,
+		func(x bool) {}, *WindowHandle,
+	)
+	form.SetConfirmImportance(FWidget.MediumImportance)
+
+	form.Show()
 }
