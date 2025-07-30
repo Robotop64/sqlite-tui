@@ -60,24 +60,21 @@ func (t *ProfileTab) GenerateContent() *FContainer.TabItem {
 	buttonScroll := FContainer.NewVScroll(FContainer.NewVBox(buttons.Items...))
 	//=============================================
 	//edit buttons ========================================
-	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {})
+	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() { addPopup() })
 	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() {})
 	saveButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDocumentSave), func() {})
-	addButton.OnTapped = func() { addPopup() }
 	removeButton.OnTapped = func() {}
 	saveButton.OnTapped = func() {}
 	editButtons := FContainer.NewVBox(FWidget.NewSeparator(), addButton, removeButton, saveButton)
 	//====================================================
 
-	profileList := FContainer.New(FLayout.NewCustomPaddedLayout(5, 0, 0, 0), FContainer.NewBorder(nil, editButtons, nil, nil, buttonScroll))
-
-	profilesPane := FContainer.NewHBox(profileList, FWidget.NewSeparator())
+	profilesPane := FContainer.NewHBox(
+		FContainer.New(FLayout.NewCustomPaddedLayout(5, 0, 0, 0), FContainer.NewBorder(nil, editButtons, nil, nil, buttonScroll)),
+		FWidget.NewSeparator(),
+	)
 	content := FContainer.NewBorder(nil, nil, profilesPane, nil, editor)
 	return FContainer.NewTabItem("Profiles", content)
 }
-
-// func listTrackedProfiles() *fyne.Container {
-// }
 
 func addPopup() {
 	const (
@@ -89,6 +86,12 @@ func addPopup() {
 	selectedFile_or_Location := FBind.NewString()
 	selectedFile_or_Location.Set("No file or location selected!")
 
+	cancelBtn := FWidget.NewButton("Cancel", func() {})
+	confirmBtn := FWidget.NewButton("Confirm", func() {})
+	confirmBtn.Disable()
+	confirmBtn.Importance = FWidget.HighImportance
+	confirmBtn.Refresh()
+
 	selectionTrigger := FWidget.NewButton("Select Location / File", func() {
 		var fSelector FDialog.Dialog
 
@@ -98,6 +101,7 @@ func addPopup() {
 				if err == nil {
 					if uri != nil {
 						selectedFile_or_Location.Set(uri.Path())
+						confirmBtn.Enable()
 					}
 				}
 			}, *WindowHandle)
@@ -107,6 +111,7 @@ func addPopup() {
 				if err == nil {
 					if reader != nil {
 						selectedFile_or_Location.Set(reader.URI().Path())
+						confirmBtn.Enable()
 						reader.Close()
 					}
 				}
@@ -123,11 +128,17 @@ func addPopup() {
 		FContainer.New(FLayout.NewCustomPaddedVBoxLayout(-5),
 			FWidget.NewLabel("Select Action:"),
 			FWidget.NewRadioGroup([]string{"Create a new Profile", "Track an existing Profile"}, func(selected string) {
+				var newMode int
 				switch selected {
 				case "Create a new Profile":
-					actionMode = OPEN_FOLDER
+					newMode = OPEN_FOLDER
 				case "Track an existing Profile":
-					actionMode = OPEN_FILE
+					newMode = OPEN_FILE
+				}
+				if actionMode != newMode {
+					actionMode = newMode
+					selectedFile_or_Location.Set("No file or location selected!")
+					confirmBtn.Disable()
 				}
 				selectionTrigger.Enable()
 			}),
@@ -137,14 +148,21 @@ func addPopup() {
 			FWidget.NewLabel("Current selection:"),
 			FWidget.NewLabelWithData(selectedFile_or_Location),
 		),
+		FContainer.NewGridWithColumns(
+			2,
+			cancelBtn,
+			confirmBtn,
+		),
 	)
 
-	form := FDialog.NewCustomConfirm(
-		"Manage a new Profile", "Confirm", "Cancel",
+	form := FDialog.NewCustomWithoutButtons(
+		"Manage a new Profile",
 		formContent,
-		func(x bool) {}, *WindowHandle,
+		*WindowHandle,
 	)
-	form.SetConfirmImportance(FWidget.MediumImportance)
+	cancelBtn.OnTapped = func() {
+		form.Hide()
+	}
 
 	form.Show()
 }
