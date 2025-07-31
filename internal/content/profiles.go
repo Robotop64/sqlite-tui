@@ -1,6 +1,8 @@
 package content
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
 	FBind "fyne.io/fyne/v2/data/binding"
@@ -9,14 +11,15 @@ import (
 	FTheme "fyne.io/fyne/v2/theme"
 	FWidget "fyne.io/fyne/v2/widget"
 
-	Yaml "gopkg.in/yaml.v3"
-
 	"SQLite-GUI/internal/components"
 	"SQLite-GUI/internal/persistent"
 )
 
 type ProfileTab struct {
 	profiles components.ListModel[*persistent.Profile]
+	elements struct {
+		list_btn_profiles *fyne.Container
+	}
 }
 
 func (t *ProfileTab) Init() {
@@ -25,58 +28,65 @@ func (t *ProfileTab) Init() {
 }
 
 func (t *ProfileTab) GenerateContent() *FContainer.TabItem {
-	editor := FWidget.NewMultiLineEntry()
+	// editor := FWidget.NewMultiLineEntry()
 
-	textdata, _ := Yaml.Marshal(t.profiles.Items[t.profiles.Selected])
-	editor.SetText(string(textdata))
+	// textdata, _ := Yaml.Marshal(t.profiles.Items[t.profiles.Selected])
+	// editor.SetText(string(textdata))
 
-	//profile buttons =================================
-	var buttons components.ListModel[fyne.CanvasObject]
-	buttons.Items = make([]fyne.CanvasObject, len(t.profiles.Items))
+	content := FContainer.NewBorder(nil, nil, createProfilePane(t), nil, nil) //editor)
+	return FContainer.NewTabItem("Profiles", content)
+}
+
+func createProfilePane(t *ProfileTab) *fyne.Container {
+	//# list buttons of tracked profiles
+	t.elements.list_btn_profiles = FContainer.NewVBox(createProfileButtons(t)...)
+	buttonScroll := FContainer.NewVScroll(t.elements.list_btn_profiles)
+	//#
+
+	//# list action / edit buttons
+	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() { addPopup(t) })
+	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() {})
+	saveButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDocumentSave), func() {})
+	removeButton.OnTapped = func() {}
+	saveButton.OnTapped = func() {}
+	editButtons := FContainer.NewVBox(FWidget.NewSeparator(), addButton, removeButton, saveButton)
+	//#
+
+	return FContainer.NewHBox(
+		FContainer.New(FLayout.NewCustomPaddedLayout(5, 0, 0, 0), FContainer.NewBorder(nil, editButtons, nil, nil, buttonScroll)),
+		FWidget.NewSeparator(),
+	)
+}
+
+func createProfileButtons(t *ProfileTab) []fyne.CanvasObject {
+	buttons := []fyne.CanvasObject{}
+	buttons = make([]fyne.CanvasObject, len(persistent.Profiles))
 
 	for i, profile := range t.profiles.Items {
 		button := FWidget.NewButton(profile.Name, func() {})
-		buttons.Items[i] = button
+		buttons[i] = button
 		button.OnTapped = func() {
 			//untoggle all buttons
-			for j := range buttons.Items {
-				buttons.Items[j].(*FWidget.Button).Importance = FWidget.MediumImportance
-				buttons.Items[j].Refresh()
+			for j := range buttons {
+				buttons[j].(*FWidget.Button).Importance = FWidget.MediumImportance
+				buttons[j].Refresh()
 			}
 			//toggle the tapped button
 			button.Importance = FWidget.HighImportance
 			button.Refresh()
 
 			t.profiles.Selected = i
-
-			textdata, _ := Yaml.Marshal(t.profiles.Items[i])
-			editor.SetText(string(textdata))
 		}
 	}
 
-	//select initial profile/button
-	buttons.Items[t.profiles.Selected].(*FWidget.Button).Importance = FWidget.HighImportance
-	buttons.Items[t.profiles.Selected].Refresh()
-	buttonScroll := FContainer.NewVScroll(FContainer.NewVBox(buttons.Items...))
-	//=============================================
-	//edit buttons ========================================
-	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() { addPopup() })
-	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() {})
-	saveButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDocumentSave), func() {})
-	removeButton.OnTapped = func() {}
-	saveButton.OnTapped = func() {}
-	editButtons := FContainer.NewVBox(FWidget.NewSeparator(), addButton, removeButton, saveButton)
-	//====================================================
+	// preselect selected button
+	buttons[t.profiles.Selected].(*FWidget.Button).Importance = FWidget.HighImportance
+	buttons[t.profiles.Selected].Refresh()
 
-	profilesPane := FContainer.NewHBox(
-		FContainer.New(FLayout.NewCustomPaddedLayout(5, 0, 0, 0), FContainer.NewBorder(nil, editButtons, nil, nil, buttonScroll)),
-		FWidget.NewSeparator(),
-	)
-	content := FContainer.NewBorder(nil, nil, profilesPane, nil, editor)
-	return FContainer.NewTabItem("Profiles", content)
+	return buttons
 }
 
-func addPopup() {
+func addPopup(t *ProfileTab) {
 	const (
 		NO_SELECTION = 0
 		OPEN_FOLDER  = 1
@@ -98,6 +108,39 @@ func addPopup() {
 	btn_confirm.Disable()
 	btn_confirm.Importance = FWidget.HighImportance
 	btn_confirm.Refresh()
+	btn_confirm.OnTapped = func() {
+		path, err := selected_file_or_location.Get()
+		if err == nil && path != "" {
+			success := false
+			if actionMode == OPEN_FOLDER {
+				if profile, err := persistent.CreateProfile(path); err == nil {
+					persistent.Profiles = append(persistent.Profiles, profile)
+					t.profiles.Items = persistent.Profiles
+					fmt.Println("Created new profile at:", path)
+					success = true
+				}
+			}
+			if actionMode == OPEN_FILE {
+				if profile, err := persistent.LoadProfile(path); err == nil {
+					persistent.Profiles = append(persistent.Profiles, profile)
+					t.profiles.Items = persistent.Profiles
+					fmt.Println("Tracking profile from file:", path)
+					success = true
+				}
+			}
+			if success {
+				t.elements.list_btn_profiles.RemoveAll()
+				for _, item := range createProfileButtons(t) {
+					t.elements.list_btn_profiles.Add(item)
+				}
+			}
+		} else {
+			FDialog.ShowError(err, *WindowHandle)
+			return
+		}
+
+		dlg_form.Hide()
+	}
 
 	btn_selection.OnTapped = func() {
 		var dlg_file_selector FDialog.Dialog
