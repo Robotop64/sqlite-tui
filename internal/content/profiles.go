@@ -129,10 +129,8 @@ func addPopup(t *ProfileTab) {
 				}
 			}
 			if success {
-				t.elements.list_btn_profiles.RemoveAll()
-				for _, item := range createProfileButtons(t) {
-					t.elements.list_btn_profiles.Add(item)
-				}
+				t.elements.list_btn_profiles.Objects = createProfileButtons(t)
+				t.elements.list_btn_profiles.Refresh()
 			}
 		} else {
 			FDialog.ShowError(err, *WindowHandle)
