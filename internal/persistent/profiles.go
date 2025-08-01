@@ -47,6 +47,15 @@ func SaveProfile(profile *Profile, path string) error {
 	return nil
 }
 
+func SaveProfiles() {
+	for i, profile := range Profiles {
+		path := Data.Profiles.Paths[i]
+		if err := SaveProfile(profile, path); err != nil {
+			fmt.Printf("Error saving profile %s: %v\n", profile.Name, err)
+		}
+	}
+}
+
 func CreateProfile(path string) (*Profile, error) {
 	path = utils.CleanPath(path)
 	if !utils.EndsWith(path, "Profile.yaml") {
@@ -103,11 +112,8 @@ func ProfilePath(profile *Profile) string {
 	}
 
 	for i := range len(Profiles) {
-		iter_profile := Profiles[i]
-		path := Data.Profiles.Paths[i]
-
-		if iter_profile == profile {
-			return path
+		if iter_profile := Profiles[i]; iter_profile == profile {
+			return Data.Profiles.Paths[i]
 		}
 	}
 
