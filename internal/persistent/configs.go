@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	utils "SQLite-GUI/internal/utils"
 )
@@ -20,11 +21,11 @@ func DefConfig() Config {
 func LoadConfig() error {
 	configLocation := utils.ConfigLoc()
 
-	os.MkdirAll(configLocation, os.ModePerm)
+	os.MkdirAll(filepath.Dir(configLocation), os.ModePerm)
 
 	if !utils.CheckPath(configLocation) {
 		fmt.Printf("Config file not found at %s. \nCreating default.\n", configLocation)
-		if err := os.MkdirAll(configLocation, os.ModePerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(configLocation), os.ModePerm); err != nil {
 			log.Fatalf("Error creating config directory: %v", err)
 		}
 		Configs = DefConfig()
