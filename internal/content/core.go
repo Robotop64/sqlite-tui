@@ -6,7 +6,7 @@ import (
 
 type Tab interface {
 	Init()
-	GenerateContent() *FContainer.TabItem
+	CreateContent() *FContainer.TabItem
 }
 
 type TabCore struct {

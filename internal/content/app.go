@@ -26,7 +26,7 @@ func Init() {
 
 	tabs := FContainer.NewAppTabs(
 		utils.Map(tabCore.Tabs, func(i int, tab Tab) *FContainer.TabItem {
-			return tab.GenerateContent()
+			return tab.CreateContent()
 		})...,
 	)
 
