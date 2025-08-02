@@ -35,10 +35,12 @@ func (t *ProfileTab) Init() {
 	t.bindings.profile_name = FBind.NewString()
 	t.bindings.profile_location = FBind.NewString()
 	t.bindings.profile_note = FBind.NewString()
+
+	t.components.list_form_targets = FContainer.NewVBox()
 }
 
 func (t *ProfileTab) CreateContent() *FContainer.TabItem {
-	return FContainer.NewTabItem("Profiles", FContainer.NewStack(FContainer.NewBorder(nil, nil, createProfilePanel(t), nil, createEditorForm(t))))
+	return FContainer.NewTabItem("Profiles", FContainer.NewStack(FContainer.NewBorder(nil, nil, createProfilePanel(t), nil, FContainer.NewVScroll(createEditorForm(t)))))
 }
 
 func createProfilePanel(t *ProfileTab) *fyne.Container {
@@ -103,56 +105,147 @@ func updateProfileButtons(t *ProfileTab) {
 	t.components.list_btn_profiles.Refresh()
 }
 
+func nonValidatedEntry(data FBind.String) *FWidget.Entry {
+	entry := FWidget.NewEntryWithData(data)
+	entry.Validator = nil
+	entry.Refresh()
+	return entry
+}
+
 func createEditorForm(t *ProfileTab) *FWidget.Form {
 	form := FWidget.NewForm()
-
-	nonValidatedEntry := func(data FBind.String) *FWidget.Entry {
-		entry := FWidget.NewEntryWithData(data)
-		entry.Validator = nil
-		entry.Refresh()
-		return entry
-	}
 
 	form.Append("Name", nonValidatedEntry(t.bindings.profile_name))
 	form.Append("File Location", FWidget.NewLabelWithData(t.bindings.profile_location))
 	form.Append("Note", nonValidatedEntry(t.bindings.profile_note))
-	t.components.list_form_targets = FContainer.NewVBox(createTargetForm(t))
+	t.components.list_form_targets = FContainer.NewVBox(createTargetFormList(t)...)
 	form.Append("Targets", t.components.list_form_targets)
 	return form
 }
 
-func createTargetForm(t *ProfileTab) *fyne.Container {
-	targets := persistent.Profiles[t.selected_profile].Targets
-	btn_add := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
-		persistent.Profiles[t.selected_profile].Targets = append(persistent.Profiles[t.selected_profile].Targets, persistent.Target{})
-		t.components.list_form_targets.Objects = []fyne.CanvasObject{createTargetForm(t)}
-		t.components.list_form_targets.Refresh()
-	})
-	if len(targets) == 0 {
-		return FContainer.NewHBox(FWidget.NewLabel("No targets defined for this profile."), FLayout.NewSpacer(), btn_add)
+func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container {
+
+	nameBind := FBind.BindString(&target.Name)
+	// sourceList := FBind.BindStringList(&target.SourcePaths)
+	// scriptList := FBind.BindStringList(&target.ScriptPaths)
+	noteBind := FBind.BindString(&target.Note)
+
+	nameBind.AddListener(FBind.NewDataListener(func() {
+		target.Name, _ = nameBind.Get()
+	}))
+	noteBind.AddListener(FBind.NewDataListener(func() {
+		target.Note, _ = noteBind.Get()
+	}))
+
+	entry_name := nonValidatedEntry(nameBind)
+	entry_note := nonValidatedEntry(noteBind)
+
+	// btn_add_source := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
+	// 	sourceList.Append("")
+	// })
+	// btn_add_script := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
+	// 	scriptList.Append("")
+	// })
+
+	list_files := func(list *[]string, t *ProfileTab) fyne.CanvasObject {
+		items := make([]fyne.CanvasObject, len(*list))
+		for i := 0; i < len(*list); i++ {
+			bind := FBind.BindString(&(*list)[i])
+			label := FWidget.NewLabelWithData(bind)
+			btn_rmv := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func(idx int) func() {
+				return func() {
+					*list = append((*list)[:idx], (*list)[idx+1:]...)
+					updateEditorForm(t)
+				}
+			}(i))
+			items[i] = FContainer.NewBorder(nil, nil, nil, btn_rmv, label)
+		}
+		btn_add_file := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
+			dlg_file_selector := FDialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+				if err == nil && reader != nil {
+					*list = append(*list, reader.URI().Path())
+					reader.Close()
+					updateEditorForm(t)
+				}
+			}, *WindowHandle)
+			windowSize := (*WindowHandle).Canvas().Size()
+			dlg_file_selector.Resize(fyne.NewSize(windowSize.Width*0.8, windowSize.Height*0.8))
+			dlg_file_selector.Show()
+		})
+		return FContainer.NewBorder(nil, nil, nil, FContainer.NewHBox(FWidget.NewSeparator(), FContainer.NewVBox(btn_add_file, FLayout.NewSpacer())), FContainer.NewVBox(items...))
 	}
 
-	targetForm := func(target persistent.Target) *fyne.Container {
+	// list_soures := FWidget.NewListWithData(
+	// 	sourceList,
+	// 	func() fyne.CanvasObject { return FWidget.NewLabel("template") },
+	// 	func(i FBind.DataItem, o fyne.CanvasObject) {
+	// 		o.(*FWidget.Label).Bind(i.(FBind.String))
+	// 	},
+	// )
+	// list_scripts := FWidget.NewListWithData(
+	// 	scriptList,
+	// 	func() fyne.CanvasObject { return FWidget.NewLabel("template") },
+	// 	func(i FBind.DataItem, o fyne.CanvasObject) {
+	// 		o.(*FWidget.Label).Bind(i.(FBind.String))
+	// 	},
+	// )
 
-		return FContainer.NewVBox()
-	}
+	// sourceRow := FContainer.NewBorder(nil, nil, nil,
+	// 	btn_add_source,
+	// 	FContainer.NewStack(list_soures),
+	// )
 
-	forms := make([]fyne.CanvasObject, len(targets))
-	for i, target := range targets {
-		forms[i] = targetForm(target)
-	}
+	// scriptRow := FContainer.NewStack(
+	// 	FContainer.NewBorder(nil, nil, nil,
+	// 		btn_add_script,
+	// 		list_scripts,
+	// 	),
+	// )
 
-	return FContainer.NewVBox(forms...)
+	return FContainer.New(FLayout.NewFormLayout(),
+		FWidget.NewLabel("Name"),
+		entry_name,
+		FWidget.NewLabel("Source Paths"),
+		list_files(&target.SourcePaths, t),
+		FWidget.NewLabel("Script Paths"),
+		list_files(&target.ScriptPaths, t),
+		FWidget.NewLabel("Note"),
+		entry_note,
+	)
 }
 
-// targetEntry := func(target persistent.) *fyne.Container {
-// 		return FContainer.NewVBox()
-// 	}
+func createTargetFormList(t *ProfileTab) []fyne.CanvasObject {
+	profile := t.bindings.profile
 
-// 	targets := make([]*fyne.Container, len(t.bindings.profile.Targets))
-// 	for i, target := range t.bindings.profile.Targets {
-// 		targets[i] = targetEntry()
-// 	}
+	btn_add_target := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
+		profile.Targets = append(profile.Targets, persistent.Target{Name: "New Target"})
+		updateEditorForm(t)
+	})
+
+	if len(profile.Targets) == 0 {
+		return []fyne.CanvasObject{FContainer.NewHBox(FWidget.NewLabel("No targets available."), FLayout.NewSpacer(), btn_add_target)}
+	}
+
+	var targetForms []fyne.CanvasObject
+	for i := range profile.Targets {
+		target := &profile.Targets[i]
+		btn_remove_target := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func(idx int) func() {
+			return func() {
+				profile.Targets = append(profile.Targets[:idx], profile.Targets[idx+1:]...)
+				updateEditorForm(t)
+			}
+		}(i))
+		targetForms = append(targetForms,
+			FContainer.NewBorder(nil, nil, nil, FContainer.NewVBox(btn_remove_target, FLayout.NewSpacer()),
+				createTargetForm(t, target),
+			),
+		)
+		targetForms = append(targetForms, FWidget.NewSeparator())
+	}
+	targetForms = append(targetForms, FContainer.NewHBox(FLayout.NewSpacer(), btn_add_target))
+
+	return targetForms
+}
 
 func updateEditorForm(t *ProfileTab) {
 	t.bindings.profile = persistent.Profiles[t.selected_profile]
@@ -166,6 +259,9 @@ func updateEditorForm(t *ProfileTab) {
 	t.bindings.profile_note.AddListener(FBind.NewDataListener(func() {
 		t.bindings.profile.Note, _ = t.bindings.profile_note.Get()
 	}))
+
+	t.components.list_form_targets.Objects = createTargetFormList(t)
+	t.components.list_form_targets.Refresh()
 }
 
 func addPopup(t *ProfileTab) {

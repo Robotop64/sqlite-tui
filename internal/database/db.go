@@ -2,13 +2,10 @@ package database
 
 import (
 	"database/sql"
-	"errors"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	persistent "SQLite-GUI/internal/persistent"
-	utils "SQLite-GUI/internal/utils"
 )
 
 // "github.com/mattn/go-sqlite3"
@@ -48,16 +45,16 @@ var rootPath string
 var activeTarget persistent.Target
 
 func SetTarget(profile_root string, target persistent.Target) error {
-	rootPath = filepath.Dir(profile_root)
-	activeTarget = target
+	// rootPath = filepath.Dir(profile_root)
+	// activeTarget = target
 
-	dbPath = target.DatabasePath
-	if dbPath == "" {
-		return errors.New("Database path is empty")
-	}
-	if !filepath.IsAbs(dbPath) {
-		dbPath = utils.RelativeToAbsolutePath(rootPath, dbPath)
-	}
+	// dbPath = target.DatabasePath
+	// if dbPath == "" {
+	// 	return errors.New("Database path is empty")
+	// }
+	// if !filepath.IsAbs(dbPath) {
+	// 	dbPath = utils.RelativeToAbsolutePath(rootPath, dbPath)
+	// }
 	return nil
 }
 
