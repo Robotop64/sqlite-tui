@@ -6,3 +6,12 @@ func RemoveIdx[T any](arr []T, index int) []T {
 	}
 	return append(arr[:index], arr[index+1:]...)
 }
+
+func RemoveItem[T comparable](arr []T, value T) []T {
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == value {
+			return RemoveIdx(arr, i)
+		}
+	}
+	return arr
+}

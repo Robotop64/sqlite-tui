@@ -13,6 +13,7 @@ import (
 	FWidget "fyne.io/fyne/v2/widget"
 
 	"SQLite-GUI/internal/persistent"
+	"SQLite-GUI/internal/utils"
 )
 
 type ProfileTab struct {
@@ -40,7 +41,14 @@ func (t *ProfileTab) Init() {
 }
 
 func (t *ProfileTab) CreateContent() *FContainer.TabItem {
-	return FContainer.NewTabItem("Profiles", FContainer.NewStack(FContainer.NewBorder(nil, nil, createProfilePanel(t), nil, FContainer.NewVScroll(createEditorForm(t)))))
+	return FContainer.NewTabItem("Profiles",
+		FContainer.NewStack(
+			FContainer.NewBorder(
+				nil, nil, createProfilePanel(t), nil,
+				FContainer.NewVScroll(createEditorForm(t)),
+			),
+		),
+	)
 }
 
 func createProfilePanel(t *ProfileTab) *fyne.Container {
@@ -51,9 +59,8 @@ func createProfilePanel(t *ProfileTab) *fyne.Container {
 
 	//# list action / edit buttons
 	addButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() { addPopup(t) })
-	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() {})
+	removeButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func() { removePopup(t) })
 	saveButton := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDocumentSave), func() {})
-	removeButton.OnTapped = func() {}
 	saveButton.OnTapped = func() {
 		persistent.SaveProfiles()
 		updateProfileButtons(t)
@@ -126,8 +133,6 @@ func createEditorForm(t *ProfileTab) *FWidget.Form {
 func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container {
 
 	nameBind := FBind.BindString(&target.Name)
-	// sourceList := FBind.BindStringList(&target.SourcePaths)
-	// scriptList := FBind.BindStringList(&target.ScriptPaths)
 	noteBind := FBind.BindString(&target.Note)
 
 	nameBind.AddListener(FBind.NewDataListener(func() {
@@ -139,13 +144,6 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 
 	entry_name := nonValidatedEntry(nameBind)
 	entry_note := nonValidatedEntry(noteBind)
-
-	// btn_add_source := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
-	// 	sourceList.Append("")
-	// })
-	// btn_add_script := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameContentAdd), func() {
-	// 	scriptList.Append("")
-	// })
 
 	list_files := func(list *[]string, t *ProfileTab) fyne.CanvasObject {
 		items := make([]fyne.CanvasObject, len(*list))
@@ -174,33 +172,6 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 		})
 		return FContainer.NewBorder(nil, nil, nil, FContainer.NewHBox(FWidget.NewSeparator(), FContainer.NewVBox(btn_add_file, FLayout.NewSpacer())), FContainer.NewVBox(items...))
 	}
-
-	// list_soures := FWidget.NewListWithData(
-	// 	sourceList,
-	// 	func() fyne.CanvasObject { return FWidget.NewLabel("template") },
-	// 	func(i FBind.DataItem, o fyne.CanvasObject) {
-	// 		o.(*FWidget.Label).Bind(i.(FBind.String))
-	// 	},
-	// )
-	// list_scripts := FWidget.NewListWithData(
-	// 	scriptList,
-	// 	func() fyne.CanvasObject { return FWidget.NewLabel("template") },
-	// 	func(i FBind.DataItem, o fyne.CanvasObject) {
-	// 		o.(*FWidget.Label).Bind(i.(FBind.String))
-	// 	},
-	// )
-
-	// sourceRow := FContainer.NewBorder(nil, nil, nil,
-	// 	btn_add_source,
-	// 	FContainer.NewStack(list_soures),
-	// )
-
-	// scriptRow := FContainer.NewStack(
-	// 	FContainer.NewBorder(nil, nil, nil,
-	// 		btn_add_script,
-	// 		list_scripts,
-	// 	),
-	// )
 
 	return FContainer.New(FLayout.NewFormLayout(),
 		FWidget.NewLabel("Name"),
@@ -385,4 +356,55 @@ func addPopup(t *ProfileTab) {
 	)
 
 	dlg_form.Show()
+}
+
+func removePopup(t *ProfileTab) {
+	var dlg *FDialog.CustomDialog
+	selected_profiles := make([]int, 0)
+	btn_cancel := FWidget.NewButton("Cancel", func() { dlg.Hide() })
+	btn_confirm := FWidget.NewButton("Confirm", func() {
+		for i := 0; i < len(selected_profiles); i++ {
+			persistent.Profiles = utils.RemoveIdx(persistent.Profiles, selected_profiles[i])
+			persistent.Data.Profiles.Paths = utils.RemoveIdx(persistent.Data.Profiles.Paths, selected_profiles[i])
+			if t.selected_profile == selected_profiles[i] {
+				t.selected_profile = 0
+			}
+		}
+		persistent.SaveData()
+		updateProfileButtons(t)
+		updateEditorForm(t)
+		dlg.Hide()
+	})
+
+	btns_profiles := func() []fyne.CanvasObject {
+		buttons := make([]fyne.CanvasObject, len(persistent.Profiles))
+		for i, profile := range persistent.Profiles {
+			buttons[i] = FWidget.NewCheck(profile.Name, func(checked bool) {
+				if checked {
+					selected_profiles = append(selected_profiles, i)
+				} else {
+					selected_profiles = utils.RemoveItem(selected_profiles, i)
+				}
+			})
+		}
+		return buttons
+	}
+
+	content := FContainer.New(FLayout.NewCustomPaddedVBoxLayout(20),
+		FWidget.NewLabel("Select profiles to remove / untrack:"),
+		FContainer.NewVBox(btns_profiles()...),
+		FWidget.NewLabelWithStyle("Note: This will not delete the profile files, only untrack them.", fyne.TextAlign(FWidget.ButtonAlignLeading), fyne.TextStyle{Italic: true}),
+		FContainer.NewGridWithColumns(
+			2,
+			btn_cancel,
+			btn_confirm,
+		),
+	)
+
+	dlg = FDialog.NewCustomWithoutButtons(
+		"Manage tracked Profiles",
+		content,
+		*WindowHandle,
+	)
+	dlg.Show()
 }
