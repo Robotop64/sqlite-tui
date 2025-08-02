@@ -8,9 +8,10 @@ import (
 )
 
 type Target struct {
-	Name         string   `mapstructure:"Name" yaml:"Name"`
-	DatabasePath string   `mapstructure:"Database_Path" yaml:"Database_Path"`
-	ScriptPaths  []string `mapstructure:"Script_Paths" yaml:"Script_Paths"`
+	Name        string   `mapstructure:"Name" yaml:"Name"`
+	SourcePaths []string `mapstructure:"Source_Paths" yaml:"Source_Paths"`
+	ScriptPaths []string `mapstructure:"Script_Paths" yaml:"Script_Paths"`
+	Note        string   `mapstructure:"Note" yaml:"Note"`
 }
 
 type Profile struct {
