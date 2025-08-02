@@ -75,8 +75,7 @@ func createProfilePanel(t *ProfileTab) *fyne.Container {
 }
 
 func createProfileButtons(t *ProfileTab) []fyne.CanvasObject {
-	buttons := []fyne.CanvasObject{}
-	buttons = make([]fyne.CanvasObject, len(persistent.Profiles))
+	buttons := make([]fyne.CanvasObject, len(persistent.Profiles))
 
 	for i, profile := range persistent.Profiles {
 		button := FWidget.NewButton(profile.Name, func() {})
@@ -91,7 +90,7 @@ func createProfileButtons(t *ProfileTab) []fyne.CanvasObject {
 			button.Importance = FWidget.HighImportance
 			button.Refresh()
 
-			t.selected_profile = i
+			setSelectedProfile(t, i)
 
 			updateEditorForm(t)
 		}
@@ -105,6 +104,12 @@ func createProfileButtons(t *ProfileTab) []fyne.CanvasObject {
 	}
 
 	return buttons
+}
+
+func setSelectedProfile(t *ProfileTab, i int) {
+	t.selected_profile = i
+	persistent.Data.Profiles.LastProfileUsed = i
+	persistent.SaveData()
 }
 
 func updateProfileButtons(t *ProfileTab) {
@@ -367,7 +372,7 @@ func removePopup(t *ProfileTab) {
 			persistent.Profiles = utils.RemoveIdx(persistent.Profiles, selected_profiles[i])
 			persistent.Data.Profiles.Paths = utils.RemoveIdx(persistent.Data.Profiles.Paths, selected_profiles[i])
 			if t.selected_profile == selected_profiles[i] {
-				t.selected_profile = 0
+				setSelectedProfile(t, 0)
 			}
 		}
 		persistent.SaveData()

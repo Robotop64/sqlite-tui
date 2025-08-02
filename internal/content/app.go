@@ -12,7 +12,7 @@ var AppHandle *fyne.App
 var WindowHandle *fyne.Window
 
 func Init() {
-	app := FApp.New()
+	app := FApp.NewWithID("SQLite-GUI")
 	AppHandle = &app
 	window := app.NewWindow("SQLite-GUI")
 	WindowHandle = &window
