@@ -8,6 +8,7 @@ import (
 	// FBind "fyne.io/fyne/v2/data/binding"
 	// FDialog "fyne.io/fyne/v2/dialog"
 	// FTheme "fyne.io/fyne/v2/theme"
+
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
 	FWidget "fyne.io/fyne/v2/widget"
@@ -30,8 +31,16 @@ type BrowserTab struct {
 }
 
 func (t *BrowserTab) Init() {
+	t.Update()
+}
+
+func (t *BrowserTab) Update() {
 	t.selected_profile = persistent.Data.Profiles.LastProfileUsed
-	t.selected_target = persistent.Data.Profiles.LastTargetUsed
+	if len(persistent.Profiles[t.selected_profile].Targets) > persistent.Data.Profiles.LastTargetUsed {
+		t.selected_target = persistent.Data.Profiles.LastTargetUsed
+	} else {
+		t.selected_target = 0
+	}
 }
 
 func (t *BrowserTab) CreateContent() *FContainer.TabItem {
@@ -54,17 +63,24 @@ func (t *BrowserTab) CreateContent() *FContainer.TabItem {
 
 func createTargetButtons(t *BrowserTab) fyne.CanvasObject {
 	targets := persistent.Profiles[t.selected_profile].Targets
+	if len(targets) == 0 {
+		return FWidget.NewLabel("No targets")
+	}
+
 	list := FWidget.NewList(
 		func() int {
 			return len(targets)
 		},
 		func() fyne.CanvasObject {
-			return FWidget.NewLabel("Target     2")
+			return FWidget.NewLabel("Target")
 		},
 		func(i int, o fyne.CanvasObject) {
 			o.(*FWidget.Label).SetText(targets[i].Name)
 		},
 	)
-	list.Resize(fyne.NewSize(130, 400))
+	list.OnSelected = func(id int) {
+		t.selected_target = id
+	}
+	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(targets))*list.MinSize().Height+float32(len(targets)-1)*4))
 	return list
 }

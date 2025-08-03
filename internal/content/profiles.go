@@ -40,6 +40,9 @@ func (t *ProfileTab) Init() {
 	t.components.list_form_targets = FContainer.NewVBox()
 }
 
+func (t *ProfileTab) Update() {
+}
+
 func (t *ProfileTab) CreateContent() *FContainer.TabItem {
 	return FContainer.NewTabItem("Profiles",
 		FContainer.NewStack(

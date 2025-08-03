@@ -8,6 +8,7 @@ import (
 
 type Tab interface {
 	Init()
+	Update()
 	CreateContent() *FContainer.TabItem
 }
 
@@ -36,6 +37,7 @@ func InitCore() *FContainer.AppTabs {
 	})
 	tabs.OnSelected = func(item *FContainer.TabItem) {
 		index := utils.IndexOf(labels, item.Text)
+		tabCore.Tabs[index].Update()
 		tabs.Items[index].Content = tabCore.Tabs[index].CreateContent().Content
 		tabs.Items[index].Content.Refresh()
 	}
