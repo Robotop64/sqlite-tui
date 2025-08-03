@@ -15,3 +15,12 @@ func RemoveItem[T comparable](arr []T, value T) []T {
 	}
 	return arr
 }
+
+func IndexOf[T comparable](arr []T, value T) int {
+	for i, v := range arr {
+		if v == value {
+			return i
+		}
+	}
+	return -1 // Return -1 if the value is not found
+}
