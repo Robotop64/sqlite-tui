@@ -10,9 +10,18 @@ import (
 	utils "SQLite-GUI/internal/utils"
 )
 
+type ScriptType string
+
+const (
+	SCRIPT_VIEW    ScriptType = "View"
+	SCRIPT_MODEL   ScriptType = "Model"
+	SCRIPT_PACKAGE ScriptType = "Package"
+)
+
 type MetaData struct {
-	Name        string `yaml:"Name"`
-	Description string `yaml:"Description"`
+	Name        string     `yaml:"Name"`
+	Type        ScriptType `yaml:"Type"`
+	Description string     `yaml:"Description"`
 }
 
 type Script struct {
