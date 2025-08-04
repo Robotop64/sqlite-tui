@@ -13,6 +13,7 @@ import (
 	FWidget "fyne.io/fyne/v2/widget"
 
 	"SQLite-GUI/internal/persistent"
+	ui "SQLite-GUI/internal/ui"
 	"SQLite-GUI/internal/utils"
 )
 
@@ -33,6 +34,7 @@ type ProfileTab struct {
 func (t *ProfileTab) Init() {
 	t.selected_profile = persistent.Data.Profiles.LastProfileUsed
 
+	t.bindings.profile = persistent.Profiles[t.selected_profile]
 	t.bindings.profile_name = FBind.NewString()
 	t.bindings.profile_location = FBind.NewString()
 	t.bindings.profile_note = FBind.NewString()
@@ -56,7 +58,7 @@ func (t *ProfileTab) CreateContent() *FContainer.TabItem {
 
 func createProfilePanel(t *ProfileTab) *fyne.Container {
 	//# list buttons of tracked profiles
-	t.components.list_btn_profiles = FContainer.NewVBox(createProfileButtons(t)...)
+	t.components.list_btn_profiles = FContainer.New(&ui.Fill{}, createProfileButtons(t))
 	buttonScroll := FContainer.NewVScroll(t.components.list_btn_profiles)
 	//#
 
@@ -77,36 +79,39 @@ func createProfilePanel(t *ProfileTab) *fyne.Container {
 	)
 }
 
-func createProfileButtons(t *ProfileTab) []fyne.CanvasObject {
-	buttons := make([]fyne.CanvasObject, len(persistent.Profiles))
+func createProfileButtons(t *ProfileTab) fyne.CanvasObject {
+	profiles := persistent.Profiles
+	if len(profiles) == 0 {
+		return FWidget.NewLabel("No profiles available.")
+	}
 
-	for i, profile := range persistent.Profiles {
-		button := FWidget.NewButton(profile.Name, func() {})
-		buttons[i] = button
-		button.OnTapped = func() {
-			//untoggle all buttons
-			for j := range buttons {
-				buttons[j].(*FWidget.Button).Importance = FWidget.MediumImportance
-				buttons[j].Refresh()
-			}
-			//toggle the tapped button
-			button.Importance = FWidget.HighImportance
-			button.Refresh()
-
-			setSelectedProfile(t, i)
-
-			updateEditorForm(t)
+	var longestName string
+	for _, profile := range profiles {
+		if len(profile.Name) > len(longestName) {
+			longestName = profile.Name
 		}
 	}
 
-	// preselect selected button
-	if len(persistent.Profiles) > 0 {
-		buttons[t.selected_profile].(*FWidget.Button).Importance = FWidget.HighImportance
-		buttons[t.selected_profile].Refresh()
+	list := FWidget.NewList(
+		func() int {
+			return len(profiles)
+		},
+		func() fyne.CanvasObject {
+			return FWidget.NewLabel(longestName)
+		},
+		func(i int, o fyne.CanvasObject) {
+			o.(*FWidget.Label).SetText(profiles[i].Name)
+		},
+	)
+	list.OnSelected = func(id int) {
+		setSelectedProfile(t, id)
 		updateEditorForm(t)
 	}
-
-	return buttons
+	if len(persistent.Profiles) > 0 {
+		list.Select(t.selected_profile)
+	}
+	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(profiles))*list.MinSize().Height+float32(len(profiles)-1)*4))
+	return list
 }
 
 func setSelectedProfile(t *ProfileTab, i int) {
@@ -116,7 +121,7 @@ func setSelectedProfile(t *ProfileTab, i int) {
 }
 
 func updateProfileButtons(t *ProfileTab) {
-	t.components.list_btn_profiles.Objects = createProfileButtons(t)
+	t.components.list_btn_profiles.Objects = []fyne.CanvasObject{createProfileButtons(t)}
 	t.components.list_btn_profiles.Refresh()
 }
 
