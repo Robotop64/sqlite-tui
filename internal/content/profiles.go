@@ -2,6 +2,7 @@ package content
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 
 	"fyne.io/fyne/v2"
@@ -107,7 +108,7 @@ func createProfileButtons(t *ProfileTab) fyne.CanvasObject {
 		setSelectedProfile(t, id)
 		updateEditorForm(t)
 	}
-	if len(persistent.Profiles) > 0 {
+	if len(persistent.Profiles) > 0 && t.selected_profile < len(persistent.Profiles) {
 		list.Select(t.selected_profile)
 	}
 	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(profiles))*list.MinSize().Height+float32(len(profiles)-1)*4))
@@ -161,8 +162,12 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 	list_files := func(list *[]string, t *ProfileTab) fyne.CanvasObject {
 		items := make([]fyne.CanvasObject, len(*list))
 		for i := 0; i < len(*list); i++ {
-			bind := FBind.BindString(&(*list)[i])
-			label := FWidget.NewLabelWithData(bind)
+			path := (*list)[i]
+			u, _ := url.Parse("file://" + path)
+			label := FWidget.NewHyperlink(path, u)
+			label.OnTapped = func() {
+				utils.OpenExternal(path)
+			}
 			btn_rmv := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameDelete), func(idx int) func() {
 				return func() {
 					*list = append((*list)[:idx], (*list)[idx+1:]...)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -128,5 +129,27 @@ func LoadYamlFile(path string, data interface{}) error {
 		return err
 	}
 
+	return nil
+}
+
+func OpenExternal(path string) error {
+	path = CleanPath(path)
+	if !CheckPath(path) {
+		return fmt.Errorf("file does not exist: %s", path)
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", path)
+	case "linux":
+		cmd = exec.Command("xdg-open", path)
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
 	return nil
 }
