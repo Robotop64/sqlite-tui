@@ -90,6 +90,25 @@ func RelativeToAbsolutePath(root string, path string) string {
 	return filepath.Join(root, path)
 }
 
+func AbsoluteToRelativePath(root string, path string) string {
+	if !filepath.IsAbs(path) {
+		return path
+	}
+
+	root = CleanPath(root)
+	path = CleanPath(path)
+
+	if strings.HasPrefix(path, root) {
+		path = strings.TrimPrefix(path, root)
+		if len(path) > 0 && path[0] == os.PathSeparator {
+			path = path[1:]
+		}
+		return "./" + path
+	}
+
+	return path
+}
+
 func SaveYamlFile(path string, data interface{}) error {
 	path = CleanPath(path)
 	if !CheckPath(filepath.Dir(path)) {
