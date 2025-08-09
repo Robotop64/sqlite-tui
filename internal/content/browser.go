@@ -10,22 +10,31 @@ import (
 	// FTheme "fyne.io/fyne/v2/theme"
 
 	"fmt"
+	"path/filepath"
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
+	FTheme "fyne.io/fyne/v2/theme"
 	FWidget "fyne.io/fyne/v2/widget"
 
 	// "SQLite-GUI/internal/utils"
+	lua "SQLite-GUI/internal/lua"
 	"SQLite-GUI/internal/persistent"
 	ui "SQLite-GUI/internal/ui"
-	"SQLite-GUI/internal/utils"
+	utils "SQLite-GUI/internal/utils"
 )
 
 type BrowserTab struct {
-	selected_profile int
-	selected_target  int
-	scripts          []persistent.Script
-	components       struct {
+	selection struct {
+		profile int
+		target  int
+		view    int
+	}
+	scripts struct {
+		paths []string
+		items []persistent.Script
+	}
+	components struct {
 		tab_targets *fyne.Container
 		tab_views   *fyne.Container
 		content     *fyne.Container
@@ -35,25 +44,27 @@ type BrowserTab struct {
 }
 
 func (t *BrowserTab) Init() {
-	t.scripts = []persistent.Script{}
+	t.scripts.items = []persistent.Script{}
 
 	t.components.tab_targets = FContainer.New(&ui.Fill{}, FWidget.NewLabel("No targets"))
 	t.components.tab_views = FContainer.New(&ui.Fill{}, FWidget.NewLabel("No views"))
 	t.components.content = FContainer.NewStack()
 
 	t.Update()
+
+	lua.Init()
 }
 
 func (t *BrowserTab) Update() {
-	t.selected_profile = persistent.Data.Profiles.LastProfileUsed
-	if len(persistent.Profiles[t.selected_profile].Targets) > persistent.Data.Profiles.LastTargetUsed {
-		t.selected_target = persistent.Data.Profiles.LastTargetUsed
+	t.selection.profile = persistent.Data.Profiles.LastProfileUsed
+	if len(persistent.Profiles[t.selection.profile].Targets) > persistent.Data.Profiles.LastTargetUsed {
+		t.selection.target = persistent.Data.Profiles.LastTargetUsed
 		t.components.tab_targets.Objects = []fyne.CanvasObject{createTargetButtons(t)}
 		t.components.tab_targets.Refresh()
 		t.components.tab_views.Objects = []fyne.CanvasObject{createViewButtons(t)}
 		t.components.tab_views.Refresh()
 	} else {
-		t.selected_target = 0
+		t.selection.target = 0
 	}
 }
 
@@ -72,7 +83,7 @@ func (t *BrowserTab) CreateContent() *FContainer.TabItem {
 }
 
 func createTargetButtons(t *BrowserTab) fyne.CanvasObject {
-	targets := persistent.Profiles[t.selected_profile].Targets
+	targets := persistent.Profiles[t.selection.profile].Targets
 	if len(targets) == 0 {
 		return FWidget.NewLabel("No targets")
 	}
@@ -89,29 +100,39 @@ func createTargetButtons(t *BrowserTab) fyne.CanvasObject {
 		},
 	)
 	list.OnSelected = func(id int) {
-		t.selected_target = id
-		target := targets[t.selected_target]
-		t.scripts = utils.Map(target.ScriptPaths, func(i int, path string) persistent.Script {
-			script, err := persistent.LoadScript(path)
-			if err != nil {
-				fmt.Printf("Error loading script from %s: %v\n", path, err)
-				return persistent.Script{}
+		t.selection.target = id
+		target := targets[t.selection.target]
+		t.scripts.paths = make([]string, len(target.ScriptPaths))
+		t.scripts.items = make([]persistent.Script, len(target.ScriptPaths))
+		for i := 0; i < len(target.ScriptPaths); i++ {
+			//load paths
+			path := target.ScriptPaths[i]
+			if !filepath.IsAbs(path) {
+				path = utils.RelativeToAbsolutePath(filepath.Dir(persistent.Data.Profiles.Paths[t.selection.profile]), path)
 			}
-			return script
-		})
+			t.scripts.paths[i] = path
+
+			//find views
+			if script, err := persistent.LoadScript(path); err != nil {
+				fmt.Printf("Error loading script from %s: %v\n", path, err)
+			} else {
+				t.scripts.items = append(t.scripts.items, script)
+			}
+		}
+
 		t.components.tab_views.Objects = []fyne.CanvasObject{createViewButtons(t)}
 		t.components.tab_views.Refresh()
 	}
-	if len(targets) > 0 && t.selected_target < len(targets) {
-		list.Select(t.selected_target)
+	if len(targets) > 0 && t.selection.target < len(targets) {
+		list.Select(t.selection.target)
 	}
 	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(targets))*list.MinSize().Height+float32(len(targets)-1)*4))
 	return list
 }
 
 func createViewButtons(t *BrowserTab) fyne.CanvasObject {
-	views := []*persistent.Script{}
-	for _, script := range t.scripts {
+	views := make([]*persistent.Script, 0, len(t.scripts.items))
+	for _, script := range t.scripts.items {
 		if script.MetaData.Type == persistent.SCRIPT_VIEW {
 			views = append(views, &script)
 		}
@@ -125,18 +146,52 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 			longestName = view.MetaData.Name
 		}
 	}
+
+	setContent := func(script persistent.Script) {
+		if layout, err := lua.LoadView(script); err == nil {
+			t.components.content.Objects = []fyne.CanvasObject{layout}
+			t.components.content.Refresh()
+		} else {
+			fmt.Println("Error loading view \"", script.MetaData.Name, "\":\n  ", err)
+		}
+	}
+
 	list := FWidget.NewList(
 		func() int {
 			return len(views)
 		},
 		func() fyne.CanvasObject {
-			return FWidget.NewLabel(longestName)
+			label := FWidget.NewLabel(longestName)
+			btn := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameMediaReplay), func() {})
+			btn.Importance = FWidget.LowImportance
+			return FContainer.NewBorder(
+				nil, nil,
+				label, btn,
+			)
 		},
 		func(i int, o fyne.CanvasObject) {
-			o.(*FWidget.Label).SetText(views[i].MetaData.Name)
+			c := o.(*fyne.Container)
+			label := c.Objects[0].(*FWidget.Label)
+			label.SetText(views[i].MetaData.Name)
+			button := c.Objects[1].(*FWidget.Button)
+			button.OnTapped = func() {
+				path := t.scripts.paths[i]
+				if script, err := persistent.LoadScript(path); err != nil {
+					fmt.Println("Error re-loading script\"", script.MetaData.Name, "\":\n  ", err)
+				} else {
+					t.scripts.items[i] = script
+					*views[i] = script
+					fmt.Println("Re-loaded script:", script.MetaData.Name)
+				}
+
+				setContent(*views[i])
+			}
 		},
 	)
+
 	list.OnSelected = func(id int) {
+		t.selection.view = id
+		setContent(*views[id])
 	}
 	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(views))*list.MinSize().Height+float32(len(views)-1)*4))
 	return list
