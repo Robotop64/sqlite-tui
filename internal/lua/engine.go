@@ -1,6 +1,10 @@
 package lua
 
 import (
+	"SQLite-GUI/internal/persistent"
+	"fmt"
+
+	"fyne.io/fyne/v2"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -13,19 +17,32 @@ func Init() {
 	}
 
 	// Load standard libraries
-	if err := Env.DoString(`
-		require("os")
-		require("io")
-		require("math")
-		require("string")
-		require("table")
-	`); err != nil {
-		panic(err)
-	}
+	// if err := Env.DoString(`
+	// 	require("os")
+	// 	require("io")
+	// 	require("math")
+	// 	require("string")
+	// 	require("table")
+	// `); err != nil {
+	// 	panic(err)
+	// }
+
+	registerWidgets()
 }
 
 func Clean() {
 	if Env != nil {
 		Env.Close()
 	}
+}
+
+func LoadView(script persistent.Script) (fyne.CanvasObject, error) {
+
+	if err := Env.DoString(string(script.Script)); err != nil {
+		return nil, fmt.Errorf("failed to load Lua script: %w", err)
+	}
+
+	lua_layout := Env.GetGlobal("layout").(*lua.LTable)
+
+	return buildLayout(Env, lua_layout), nil
 }
