@@ -63,6 +63,8 @@ func (t *BrowserTab) Update() {
 		t.components.tab_targets.Refresh()
 		t.components.tab_views.Objects = []fyne.CanvasObject{createViewButtons(t)}
 		t.components.tab_views.Refresh()
+		t.components.content.Objects = []fyne.CanvasObject{FWidget.NewLabel("Select a view to display its layout")}
+		t.components.content.Refresh()
 	} else {
 		t.selection.target = 0
 	}
@@ -152,10 +154,16 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 			t.components.content.Objects = []fyne.CanvasObject{layout}
 			t.components.content.Refresh()
 		} else {
+			if layout != nil {
+				t.components.content.Objects = []fyne.CanvasObject{layout}
+				t.components.content.Refresh()
+			}
 			fmt.Println("Error loading view \"", script.MetaData.Name, "\":\n  ", err)
 		}
 	}
 
+	ref_btns := make([]*FWidget.Button, len(views))
+	var ref_btn_cur int
 	list := FWidget.NewList(
 		func() int {
 			return len(views)
@@ -164,6 +172,7 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 			label := FWidget.NewLabel(longestName)
 			btn := FWidget.NewButtonWithIcon("", FTheme.Icon(FTheme.IconNameMediaReplay), func() {})
 			btn.Importance = FWidget.LowImportance
+			btn.Hide()
 			return FContainer.NewBorder(
 				nil, nil,
 				label, btn,
@@ -174,6 +183,7 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 			label := c.Objects[0].(*FWidget.Label)
 			label.SetText(views[i].MetaData.Name)
 			button := c.Objects[1].(*FWidget.Button)
+			ref_btns[i] = button
 			button.OnTapped = func() {
 				path := t.scripts.paths[i]
 				if script, err := persistent.LoadScript(path); err != nil {
@@ -192,6 +202,9 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 	list.OnSelected = func(id int) {
 		t.selection.view = id
 		setContent(*views[id])
+		ref_btns[ref_btn_cur].Hide()
+		ref_btn_cur = id
+		ref_btns[id].Show()
 	}
 	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(views))*list.MinSize().Height+float32(len(views)-1)*4))
 	return list
