@@ -19,27 +19,27 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 	widgetType := widgetTable.RawGetString("type").String()
 
 	switch widgetType {
-	case "LBox":
+	case "LBox", "LBBox", "LFill":
 		dir := widgetTable.RawGetString("dir").String()
-		if dir == "vertical" {
-			component = FContainer.NewVBox()
-		} else {
-			component = FContainer.NewHBox()
+		switch widgetType {
+		case "LBox":
+			if dir == "vertical" {
+				component = FContainer.NewVBox()
+			} else {
+				component = FContainer.NewHBox()
+			}
+		case "LBBox":
+			if dir == "vertical" {
+				component = FContainer.New(&ui.BVBox{})
+			} else {
+				component = FContainer.New(&ui.BHBox{})
+			}
+		case "LFill":
+			component = FContainer.New(&ui.Fill{})
 		}
-		fillContainer(L, component.(*fyne.Container), widgetTable)
-		return component
-	case "LFill":
-		component = FContainer.New(&ui.Fill{})
-		fillContainer(L, component.(*fyne.Container), widgetTable)
-		return component
-	case "LBBox":
-		dir := widgetTable.RawGetString("dir").String()
-		if dir == "vertical" {
-			component = FContainer.New(&ui.BVBox{})
-		} else {
-			component = FContainer.New(&ui.BHBox{})
+		if err := fillContainer(L, component.(*fyne.Container), widgetTable); err != nil {
+			fmt.Println("Error filling container:", err)
 		}
-		fillContainer(L, component.(*fyne.Container), widgetTable)
 		return component
 
 	case "WTable":
@@ -86,11 +86,19 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 	return component
 }
 
-func fillContainer(L *lua.LState, container *fyne.Container, widgetTable *lua.LTable) {
-	if childrenVal := widgetTable.RawGetString("children"); childrenVal.Type() == lua.LTTable {
-		children := childrenVal.(*lua.LTable)
+func fillContainer(L *lua.LState, container *fyne.Container, widgetTable *lua.LTable) error {
+	var childrenTbl *lua.LTable
+	if children := widgetTable.RawGetString("children"); children.Type() == lua.LTTable {
+		childrenTbl = children.(*lua.LTable)
+	} else if children := widgetTable.RawGetInt(1); children.Type() == lua.LTTable {
+		childrenTbl = children.(*lua.LTable)
+	}
+	if childrenTbl != nil {
+		if childrenTbl.Len() == 0 {
+			return fmt.Errorf("children table is empty")
+		}
 		items := make([]fyne.CanvasObject, 0)
-		children.ForEach(func(_, child lua.LValue) {
+		childrenTbl.ForEach(func(_, child lua.LValue) {
 			if childTbl, ok := child.(*lua.LTable); ok {
 				childWidget := buildComponent(L, childTbl)
 				items = append(items, childWidget)
@@ -98,5 +106,9 @@ func fillContainer(L *lua.LState, container *fyne.Container, widgetTable *lua.LT
 		})
 		container.Objects = items
 		container.Refresh()
+	} else {
+		return fmt.Errorf("no children table found")
 	}
+
+	return nil
 }
