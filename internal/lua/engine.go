@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
+	FWidget "fyne.io/fyne/v2/widget"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -38,11 +39,19 @@ func Clean() {
 
 func LoadView(script persistent.Script) (fyne.CanvasObject, error) {
 
+	Env.SetGlobal("layout", lua.LNil)
+
 	if err := Env.DoString(string(script.Script)); err != nil {
-		return nil, fmt.Errorf("failed to load Lua script: %w", err)
+		return FWidget.NewLabel("Failed to load the script of the selected view."), fmt.Errorf("failed to load Lua script: %w", err)
 	}
 
-	lua_layout := Env.GetGlobal("layout").(*lua.LTable)
+	var lua_layout *lua.LTable
+
+	if layout := Env.GetGlobal("layout"); layout.Type() == lua.LTTable {
+		lua_layout = layout.(*lua.LTable)
+	} else {
+		return FWidget.NewLabel("The selected view does not contain a layout."), fmt.Errorf("layout not found in Lua script")
+	}
 
 	return buildLayout(Env, lua_layout), nil
 }
