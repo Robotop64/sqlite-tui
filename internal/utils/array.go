@@ -24,3 +24,12 @@ func IndexOf[T comparable](arr []T, value T) int {
 	}
 	return -1 // Return -1 if the value is not found
 }
+
+func Contains[T comparable](arr []T, value T) bool {
+	for _, v := range arr {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
