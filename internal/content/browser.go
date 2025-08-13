@@ -66,7 +66,7 @@ func (t *BrowserTab) Update() {
 		t.components.content.Objects = []fyne.CanvasObject{FWidget.NewLabel("Select a view to display its layout")}
 		t.components.content.Refresh()
 	} else {
-		t.selection.target = 0
+		setTarget(t, 0)
 	}
 }
 
@@ -102,7 +102,7 @@ func createTargetButtons(t *BrowserTab) fyne.CanvasObject {
 		},
 	)
 	list.OnSelected = func(id int) {
-		t.selection.target = id
+		setTarget(t, id)
 		target := targets[t.selection.target]
 		t.scripts.paths = make([]string, len(target.ScriptPaths))
 		t.scripts.items = make([]persistent.Script, len(target.ScriptPaths))
@@ -208,4 +208,9 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 	}
 	list.Resize(fyne.NewSize(list.MinSize().Width, float32(len(views))*list.MinSize().Height+float32(len(views)-1)*4))
 	return list
+}
+
+func setTarget(t *BrowserTab, target int) {
+	t.selection.target = target
+	persistent.Data.Profiles.LastTargetUsed = target
 }

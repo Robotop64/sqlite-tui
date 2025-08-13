@@ -129,9 +129,9 @@ func updateProfileButtons(t *ProfileTab) {
 func createEditorForm(t *ProfileTab) *FWidget.Form {
 	form := FWidget.NewForm()
 
-	form.Append("Name", ui.NonValidatedEntry(t.bindings.profile_name))
+	form.Append("Name", ui.NonValidatedEntryWithData(t.bindings.profile_name))
 	form.Append("File Location", FWidget.NewLabelWithData(t.bindings.profile_location))
-	form.Append("Note", ui.NonValidatedEntry(t.bindings.profile_note))
+	form.Append("Note", ui.NonValidatedEntryWithData(t.bindings.profile_note))
 	t.components.list_form_targets = FContainer.NewVBox(createTargetFormList(t))
 	form.Append("Targets", t.components.list_form_targets)
 	return form
@@ -149,8 +149,8 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 		target.Note, _ = noteBind.Get()
 	}))
 
-	entry_name := ui.NonValidatedEntry(nameBind)
-	entry_note := ui.NonValidatedEntry(noteBind)
+	entry_name := ui.NonValidatedEntryWithData(nameBind)
+	entry_note := ui.NonValidatedEntryWithData(noteBind)
 
 	list_files := func(list *[]string, t *ProfileTab) fyne.CanvasObject {
 		items := make([]fyne.CanvasObject, len(*list))
