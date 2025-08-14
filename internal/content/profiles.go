@@ -224,6 +224,7 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 		entry_name,
 		FWidget.NewLabel("Source Paths"),
 		list_files(&target.SourcePaths, t),
+		FLayout.NewSpacer(), FWidget.NewSeparator(),
 		FWidget.NewLabel("Script Paths"),
 		list_files(&target.ScriptPaths, t),
 		FWidget.NewLabel("Note"),
