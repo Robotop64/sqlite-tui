@@ -24,8 +24,23 @@ func NonValidatedEntryWithData(data FBind.String) *FWidget.Entry {
 	return entry
 }
 
+func NewTable(data [][]string) *FWidget.Table {
+	table := FWidget.NewTable(
+		func() (int, int) {
+			return len(data), len(data[0])
+		},
+		func() fyne.CanvasObject {
+			return FWidget.NewLabel("Placeholder")
+		},
+		func(i FWidget.TableCellID, o fyne.CanvasObject) {
+			o.(*FWidget.Label).SetText(data[i.Row][i.Col])
+		},
+	)
+	return table
+}
+
 // TODO make generic
-func EditableTable(data *[][]string, dirtyRows *[]int) *FWidget.Table {
+func NewEditableTable(data *[][]string, dirtyRows *[]int) *FWidget.Table {
 	type CellFocus struct {
 		Row int
 		Col int
