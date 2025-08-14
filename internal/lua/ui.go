@@ -19,8 +19,9 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 	var err_msg string
 	widgetType := widgetTable.RawGetString("type").String()
 
+WidgetSwitch:
 	switch widgetType {
-	case "LBox", "LBBox", "LFill":
+	case "LBox", "LBBox", "LFill", "LWBox":
 
 		dir, ok := widgetTable.RawGetString("dir").(lua.LString)
 		if !ok && widgetType != "LFill" {
@@ -42,7 +43,23 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 			}
 		case "LFill":
 			component = FContainer.New(&ui.Fill{})
+		case "LWBox":
+			weights := make([]float32, 0)
+			if weightsTable, ok := widgetTable.RawGetString("weights").(*lua.LTable); ok {
+				//preallocate
+				weights = make([]float32, 0, weightsTable.Len())
+				weightsTable.ForEach(func(k, v lua.LValue) {
+					if weight, ok := v.(lua.LNumber); ok {
+						weights = append(weights, float32(weight))
+					}
+				})
+			} else {
+				err_msg = fmt.Sprintf("Layout '%s' requires a 'weights' property", widgetType)
+				break WidgetSwitch
+			}
+			component = FContainer.New(&ui.WBox{Weights: weights, Dir: ui.DirFromStr(dir.String())})
 		}
+
 		if err := fillContainer(L, component.(*fyne.Container), widgetTable); err != nil {
 			fmt.Println("Error filling container:", err)
 		}
@@ -59,17 +76,34 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 		// sourcepath := persistent.Profiles[curr_profile].Targets[curr_target].ScriptPaths[int(idx_source)-1]
 
 		data := [][]string{
-			[]string{"top left", "top right"},
-			[]string{"bottom left", "bottom right"},
+			{"C1R1", "C2R1"},
+			{"C1R2", "C2R2"},
+			{"C1R3", "C2R3"},
+			{"C1R4", "C2R4"},
+			{"C1R5", "C2R5"},
+			{"C1R6", "C2R6"},
+			{"C1R7", "C2R7"},
+			{"C1R8", "C2R8"},
+			{"C1R9", "C2R9"},
+			{"C1R10", "C2R10"},
+			{"C1R1", "C2R1"},
+			{"C1R2", "C2R2"},
+			{"C1R3", "C2R3"},
+			{"C1R4", "C2R4"},
+			{"C1R5", "C2R5"},
+			{"C1R6", "C2R6"},
+			{"C1R7", "C2R7"},
+			{"C1R8", "C2R8"},
+			{"C1R9", "C2R9"},
+			{"C1R10", "C2R10"},
 		}
-		dirtyRows := make([]int, 0)
-		table := ui.EditableTable(&data, &dirtyRows)
-
-		cellSize := table.MinSize()
-		table.Resize(fyne.NewSize(
-			cellSize.Width*float32(len(data[0])),
-			cellSize.Height*float32(len(data)),
-		))
+		var table *FWidget.Table
+		if cfg_tbl, ok := widgetTable.RawGetString("editable").(lua.LBool); ok && cfg_tbl == lua.LTrue {
+			dirtyRows := make([]int, 0)
+			table = ui.NewEditableTable(&data, &dirtyRows)
+		} else {
+			table = ui.NewTable(data)
+		}
 		if cfg_header, ok := widgetTable.RawGetString("header").(*lua.LTable); ok {
 			if cfg_cols, ok := cfg_header.RawGetString("column").(lua.LBool); ok && cfg_cols == lua.LTrue {
 				table.ShowHeaderRow = true
@@ -79,7 +113,50 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 			}
 		}
 
-		component = table
+		cellSize := table.MinSize()
+		table.Resize(fyne.NewSize(
+			cellSize.Width*float32(len(data[0])),
+			cellSize.Height*float32(len(data)),
+		))
+
+		if cfg_title, ok := widgetTable.RawGetString("title").(*lua.LTable); ok {
+			if title_text, ok := cfg_title.RawGetString("text").(lua.LString); ok {
+				lbl := FWidget.NewLabel(title_text.String())
+				if title_alignment, ok := cfg_title.RawGetString("alignment").(lua.LString); ok {
+					switch title_alignment.String() {
+					case "left":
+						lbl.Alignment = fyne.TextAlignLeading
+					case "center":
+						lbl.Alignment = fyne.TextAlignCenter
+					case "right":
+						lbl.Alignment = fyne.TextAlignTrailing
+					}
+				}
+				if title_style, ok := cfg_title.RawGetString("style").(*lua.LTable); ok {
+
+					var bold, italic bool
+					if boldVal, ok := title_style.RawGetString("bold").(lua.LBool); ok {
+						bold = boldVal == lua.LTrue
+					}
+					if italicVal, ok := title_style.RawGetString("italic").(lua.LBool); ok {
+						italic = italicVal == lua.LTrue
+					}
+
+					lbl.TextStyle = fyne.TextStyle{
+						Bold:   bold,
+						Italic: italic,
+					}
+					lbl.Refresh()
+				}
+
+				component = FContainer.NewBorder(
+					lbl, nil, nil, nil, table,
+				)
+			}
+		} else {
+			component = table
+		}
+
 	case "WFilter":
 		component = FWidget.NewLabel("Filter placeholder")
 	case "WCheckList":
@@ -88,16 +165,20 @@ func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
 	case "WButton":
 		text := widgetTable.RawGetString("text").String()
-		action := widgetTable.RawGetString("action")
 		component = FWidget.NewButton(text, func() {
-			if err := L.CallByParam(lua.P{
-				Fn:      action,
-				NRet:    0,
-				Protect: true,
-			}); err != nil {
-				fmt.Println("Error calling button action:", err)
+			if action, ok := widgetTable.RawGetString("action").(*lua.LFunction); ok {
+				if err := L.CallByParam(lua.P{
+					Fn:      action,
+					NRet:    0,
+					Protect: true,
+				}); err != nil {
+					fmt.Println("Error calling button action:", err)
+				}
+			} else {
+				fmt.Println("The pressed button has no assigned action to be performed.")
 			}
 		})
+
 	case "WLabel":
 		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
 	}
@@ -120,7 +201,7 @@ func fillContainer(L *lua.LState, container *fyne.Container, widgetTable *lua.LT
 		if childrenTbl.Len() == 0 {
 			return fmt.Errorf("children table is empty")
 		}
-		items := make([]fyne.CanvasObject, 0)
+		items := make([]fyne.CanvasObject, 0, childrenTbl.Len())
 		childrenTbl.ForEach(func(_, child lua.LValue) {
 			if childTbl, ok := child.(*lua.LTable); ok {
 				childWidget := buildComponent(L, childTbl)

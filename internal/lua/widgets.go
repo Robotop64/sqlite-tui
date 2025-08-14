@@ -13,8 +13,10 @@ func registerWidgets() {
 	registerWidget("LBox")
 	registerWidget("LFill")
 	registerWidget("LBBox")
+	registerWidget("LWBox")
 
 	registerWidget("WTable")
+	registerWidget("WFilter")
 	registerWidget("WView")
 	registerWidget("WButton")
 	registerWidget("WCheckList")
