@@ -6,11 +6,13 @@ import (
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
 	FLayout "fyne.io/fyne/v2/layout"
+	FTheme "fyne.io/fyne/v2/theme"
 	FWidget "fyne.io/fyne/v2/widget"
 	lua "github.com/yuin/gopher-lua"
 
 	CLayout "SQLite-GUI/internal/ui/layout"
 	CWidget "SQLite-GUI/internal/ui/widgets"
+	"SQLite-GUI/internal/utils"
 )
 
 func buildLayout(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
@@ -177,8 +179,22 @@ WidgetSwitch:
 	case "WSpacer":
 		component = FLayout.NewSpacer()
 	case "WButton":
-		text := widgetTable.RawGetString("text").String()
-		component = FWidget.NewButton(text, func() {
+		var text, icon string
+		var ok_text, ok_icon bool
+		var Ltext, Licon lua.LValue
+		if Ltext, ok_text = widgetTable.RawGetString("text").(lua.LString); ok_text {
+			text = Ltext.String()
+		}
+		if Licon, ok_icon = widgetTable.RawGetString("icon").(lua.LString); ok_icon {
+			icon = Licon.String()
+		}
+
+		if !ok_text && !ok_icon {
+			err_msg = "A button requires either a 'text' or 'icon' or both property to be defined."
+			break
+		}
+
+		lambda_action := func() {
 			if action, ok := widgetTable.RawGetString("action").(*lua.LFunction); ok {
 				if err := L.CallByParam(lua.P{
 					Fn:      action,
@@ -190,8 +206,14 @@ WidgetSwitch:
 			} else {
 				fmt.Println("The pressed button has no assigned action to be performed.")
 			}
-		})
+		}
 
+		if !ok_icon {
+			component = FWidget.NewButton(text, lambda_action)
+			break
+		}
+
+		component = FWidget.NewButtonWithIcon(text, FTheme.Icon(utils.IconFromName(icon)), lambda_action)
 	case "WLabel":
 		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
 
