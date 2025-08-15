@@ -1,115 +1,15 @@
-package ui
+package widgets
 
 import (
-	"fmt"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
-	FBind "fyne.io/fyne/v2/data/binding"
 	FLayout "fyne.io/fyne/v2/layout"
 	FWidget "fyne.io/fyne/v2/widget"
 
 	utils "SQLite-GUI/internal/utils"
 )
-
-func NonValidatedEntry() *FWidget.Entry {
-	entry := FWidget.NewEntry()
-	entry.Validator = nil
-	entry.Refresh()
-	return entry
-}
-
-func NonValidatedEntryWithData(data FBind.String) *FWidget.Entry {
-	entry := FWidget.NewEntryWithData(data)
-	entry.Validator = nil
-	entry.Refresh()
-	return entry
-}
-
-func NewTable(data [][]string) *FWidget.Table {
-	table := FWidget.NewTable(
-		func() (int, int) {
-			return len(data), len(data[0])
-		},
-		func() fyne.CanvasObject {
-			return FWidget.NewLabel("Placeholder")
-		},
-		func(i FWidget.TableCellID, o fyne.CanvasObject) {
-			o.(*FWidget.Label).SetText(data[i.Row][i.Col])
-		},
-	)
-	return table
-}
-
-// TODO make generic
-func NewEditableTable(data *[][]string, dirtyRows *[]int) *FWidget.Table {
-	type CellFocus struct {
-		Row int
-		Col int
-	}
-	var cell_edit *CellFocus
-	var table *FWidget.Table
-
-	table = FWidget.NewTable(
-		func() (int, int) {
-			return len(*data), len((*data)[0])
-		},
-		func() fyne.CanvasObject {
-			lbl := FWidget.NewLabel("Placeholder")
-			entry := FWidget.NewEntry()
-			entry.Hide()
-			return FContainer.NewStack(lbl, entry)
-		},
-		func(i FWidget.TableCellID, o fyne.CanvasObject) {
-			cell := o.(*fyne.Container)
-			val := (*data)[i.Row][i.Col]
-
-			lbl := cell.Objects[0].(*FWidget.Label)
-			entry := cell.Objects[1].(*FWidget.Entry)
-
-			if lbl.Text != val {
-				lbl.SetText(val)
-			}
-			if entry.Text != val {
-				entry.SetText(val)
-			}
-
-			updateData := func(val string) {
-				if (*data)[i.Row][i.Col] != val && !utils.Contains(*dirtyRows, i.Row) {
-					*dirtyRows = append(*dirtyRows, i.Row)
-					fmt.Println("Row marked as dirty:", i.Row)
-				}
-
-				//TODO Check if type casting is valid
-				(*data)[i.Row][i.Col] = val
-			}
-
-			// entry.OnChanged = func(val string) {
-			// 	updateData(val)
-			// }
-
-			entry.OnSubmitted = func(val string) {
-				updateData(val)
-				cell_edit = nil
-				table.Refresh()
-			}
-
-			if cell_edit != nil && cell_edit.Row == i.Row && cell_edit.Col == i.Col {
-				lbl.Hide()
-				entry.Show()
-			} else {
-				lbl.Show()
-				entry.Hide()
-			}
-		},
-	)
-	table.OnSelected = func(id FWidget.TableCellID) {
-		cell_edit = &CellFocus{Row: id.Row, Col: id.Col}
-		table.Refresh()
-	}
-
-	return table
-}
 
 type TableModel struct {
 	Columns []string
@@ -139,7 +39,7 @@ func NewTableModel(cols []string) TableModel {
 
 func NewFilter_Table(table *TableModel) *fyne.Container {
 	var content *fyne.Container
-	var btn_pop_vis_col, btn_pop_sort_col *FWidget.Button
+	var btn_pop_vis_col, btn_pop_sort_col, btn_sort_dir *FWidget.Button
 	var list_cols *FWidget.List
 	var radio_cols *FWidget.RadioGroup
 
@@ -199,6 +99,10 @@ func NewFilter_Table(table *TableModel) *fyne.Container {
 			}
 		}
 	})
+	radio_cols.Options = create_radio_items(&num_cols_visible)
+	if len(radio_cols.Options) > 0 {
+		radio_cols.Selected = radio_cols.Options[table.Filter.SortByCol]
+	}
 	radio_cols.Required = true
 	pop_sort_col.Content = FContainer.NewStack(radio_cols, FWidget.NewLabel("No columns selected"))
 	pop_sort_col.Refresh()
@@ -227,12 +131,38 @@ func NewFilter_Table(table *TableModel) *fyne.Container {
 		btnPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(btn_pop_sort_col)
 		pop_sort_col.ShowAtPosition(btnPos.Add(fyne.NewPos(0, btn_pop_sort_col.Size().Height)))
 	})
+	btn_sort_dir = FWidget.NewButton("Asc", func() {
+		if table.Filter.SortAsc {
+			table.Filter.SortAsc = false
+			btn_sort_dir.SetText("Desc")
+		} else {
+			table.Filter.SortAsc = true
+			btn_sort_dir.SetText("Asc")
+		}
+	})
+
+	entry_num_rows := NewNumericalEntry()
+	entry_num_rows.SetText(strconv.Itoa(table.Filter.NumRows))
+	entry_num_rows.OnSubmitted = func(val string) {
+		if val == "" {
+			entry_num_rows.SetText(strconv.Itoa(table.Filter.NumRows))
+			return
+		}
+		table.Filter.NumRows, _ = strconv.Atoi(val)
+	}
+	entry_num_rows.OnFocusLost = func() {
+		if entry_num_rows.Text != "" {
+			table.Filter.NumRows, _ = strconv.Atoi(entry_num_rows.Text)
+		} else {
+			entry_num_rows.SetText(strconv.Itoa(table.Filter.NumRows))
+		}
+	}
 
 	content = FContainer.New(FLayout.NewFormLayout(),
 		FWidget.NewLabel("Columns:"), btn_pop_vis_col,
 		FWidget.NewLabel("Sort by Column:"), btn_pop_sort_col,
-		FWidget.NewLabel("Number of Rows:"), FLayout.NewSpacer(),
-		FWidget.NewLabel("Sort Direction:"), FLayout.NewSpacer(),
+		FWidget.NewLabel("Number of Rows:"), entry_num_rows,
+		FWidget.NewLabel("Sort Direction:"), btn_sort_dir,
 	)
 
 	return FContainer.NewBorder(FWidget.NewLabel("Table Filter"), nil, nil, nil, content)
