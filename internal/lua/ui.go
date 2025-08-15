@@ -1,13 +1,14 @@
 package lua
 
 import (
-	"SQLite-GUI/internal/ui"
 	"fmt"
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
 	FWidget "fyne.io/fyne/v2/widget"
 	lua "github.com/yuin/gopher-lua"
+
+	ui "SQLite-GUI/internal/ui"
 )
 
 func buildLayout(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
@@ -17,7 +18,7 @@ func buildLayout(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 func buildComponent(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
 	var component fyne.CanvasObject
 	var err_msg string
-	widgetType := widgetTable.RawGetString("type").String()
+	widgetType := widgetTable.RawGetString("WType").String()
 
 WidgetSwitch:
 	switch widgetType {
@@ -46,7 +47,6 @@ WidgetSwitch:
 		case "LWBox":
 			weights := make([]float32, 0)
 			if weightsTable, ok := widgetTable.RawGetString("weights").(*lua.LTable); ok {
-				//preallocate
 				weights = make([]float32, 0, weightsTable.Len())
 				weightsTable.ForEach(func(k, v lua.LValue) {
 					if weight, ok := v.(lua.LNumber); ok {
@@ -158,7 +158,13 @@ WidgetSwitch:
 		}
 
 	case "WFilter":
-		component = FWidget.NewLabel("Filter placeholder")
+		if cfg_type, ok := widgetTable.RawGetString("type").(lua.LString); ok {
+			switch cfg_type {
+			case "table":
+				table := ui.NewTableModel([]string{"C1", "C2", "C3", "C4", "C5", "C6"})
+				component = ui.NewFilter_Table(&table)
+			}
+		}
 	case "WCheckList":
 		component = FWidget.NewLabel("Checklist placeholder")
 	case "WView":

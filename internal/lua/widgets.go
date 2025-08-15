@@ -28,7 +28,7 @@ func registerWidget(name string) {
 		properties := L.CheckTable(1)
 
 		out := L.NewTable()
-		out.RawSetString("type", lua.LString(name))
+		out.RawSetString("WType", lua.LString(name))
 
 		properties.ForEach(func(k, v lua.LValue) {
 			out.RawSet(k, v)
