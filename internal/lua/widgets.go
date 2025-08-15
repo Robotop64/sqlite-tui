@@ -7,13 +7,15 @@ type Widget interface {
 	// SetActions(actions []interface{})
 }
 
-
 func registerWidgets() {
 	registerWidget("WContainer")
 	registerWidget("LBox")
 	registerWidget("LFill")
 	registerWidget("LBBox")
 	registerWidget("LWBox")
+
+	registerWidget("WSeparator")
+	registerWidget("WSpacer")
 
 	registerWidget("WTable")
 	registerWidget("WFilter")

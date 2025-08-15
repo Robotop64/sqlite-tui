@@ -5,10 +5,12 @@ import (
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
+	FLayout "fyne.io/fyne/v2/layout"
 	FWidget "fyne.io/fyne/v2/widget"
 	lua "github.com/yuin/gopher-lua"
 
-	ui "SQLite-GUI/internal/ui"
+	CLayout "SQLite-GUI/internal/ui/layout"
+	CWidget "SQLite-GUI/internal/ui/widgets"
 )
 
 func buildLayout(L *lua.LState, widgetTable *lua.LTable) fyne.CanvasObject {
@@ -38,12 +40,12 @@ WidgetSwitch:
 			}
 		case "LBBox":
 			if dir == "vertical" {
-				component = FContainer.New(&ui.BVBox{})
+				component = FContainer.New(&CLayout.BVBox{})
 			} else {
-				component = FContainer.New(&ui.BHBox{})
+				component = FContainer.New(&CLayout.BHBox{})
 			}
 		case "LFill":
-			component = FContainer.New(&ui.Fill{})
+			component = FContainer.New(&CLayout.Fill{})
 		case "LWBox":
 			weights := make([]float32, 0)
 			if weightsTable, ok := widgetTable.RawGetString("weights").(*lua.LTable); ok {
@@ -57,7 +59,7 @@ WidgetSwitch:
 				err_msg = fmt.Sprintf("Layout '%s' requires a 'weights' property", widgetType)
 				break WidgetSwitch
 			}
-			component = FContainer.New(&ui.WBox{Weights: weights, Dir: ui.DirFromStr(dir.String())})
+			component = FContainer.New(&CLayout.WBox{Weights: weights, Dir: CLayout.DirFromStr(dir.String())})
 		}
 
 		if err := fillContainer(L, component.(*fyne.Container), widgetTable); err != nil {
@@ -100,9 +102,9 @@ WidgetSwitch:
 		var table *FWidget.Table
 		if cfg_tbl, ok := widgetTable.RawGetString("editable").(lua.LBool); ok && cfg_tbl == lua.LTrue {
 			dirtyRows := make([]int, 0)
-			table = ui.NewEditableTable(&data, &dirtyRows)
+			table = CWidget.NewEditableTable(&data, &dirtyRows)
 		} else {
-			table = ui.NewTable(data)
+			table = CWidget.NewTable(data)
 		}
 		if cfg_header, ok := widgetTable.RawGetString("header").(*lua.LTable); ok {
 			if cfg_cols, ok := cfg_header.RawGetString("column").(lua.LBool); ok && cfg_cols == lua.LTrue {
@@ -156,19 +158,24 @@ WidgetSwitch:
 		} else {
 			component = table
 		}
-
 	case "WFilter":
 		if cfg_type, ok := widgetTable.RawGetString("type").(lua.LString); ok {
 			switch cfg_type {
 			case "table":
-				table := ui.NewTableModel([]string{"C1", "C2", "C3", "C4", "C5", "C6"})
-				component = ui.NewFilter_Table(&table)
+				table := CWidget.NewTableModel([]string{"C1", "C2", "C3", "C4", "C5", "C6"})
+				component = CWidget.NewFilter_Table(&table)
+			default:
+				err_msg = fmt.Sprintf("Filter widget type '%s' is not supported.", cfg_type.String())
+				break WidgetSwitch
 			}
+		} else {
+			err_msg = "Filter widget requires a 'type' property to be defined."
+			break
 		}
-	case "WCheckList":
-		component = FWidget.NewLabel("Checklist placeholder")
-	case "WView":
-		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
+	case "WSeparator":
+		component = FWidget.NewSeparator()
+	case "WSpacer":
+		component = FLayout.NewSpacer()
 	case "WButton":
 		text := widgetTable.RawGetString("text").String()
 		component = FWidget.NewButton(text, func() {
@@ -186,6 +193,11 @@ WidgetSwitch:
 		})
 
 	case "WLabel":
+		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
+
+	case "WCheckList":
+		component = FWidget.NewLabel("Checklist placeholder")
+	case "WView":
 		component = FWidget.NewLabel(widgetTable.RawGetString("text").String())
 	}
 

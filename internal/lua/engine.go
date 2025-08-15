@@ -42,7 +42,7 @@ func LoadView(script persistent.Script) (fyne.CanvasObject, error) {
 	Env.SetGlobal("layout", lua.LNil)
 
 	if err := Env.DoString(string(script.Script)); err != nil {
-		return FWidget.NewLabel("Failed to load the script of the selected view."), fmt.Errorf("failed to load Lua script: %w", err)
+		return FWidget.NewLabel(fmt.Sprintf("Failed to load the script of the selected view.\nCaused by error:\n\t %v", err)), fmt.Errorf("failed to load Lua script: %w", err)
 	}
 
 	var lua_layout *lua.LTable
