@@ -20,7 +20,7 @@ import (
 	// "SQLite-GUI/internal/utils"
 	lua "SQLite-GUI/internal/lua"
 	"SQLite-GUI/internal/persistent"
-	ui "SQLite-GUI/internal/ui"
+	CLayout "SQLite-GUI/internal/ui/layout"
 	utils "SQLite-GUI/internal/utils"
 )
 
@@ -46,8 +46,8 @@ type BrowserTab struct {
 func (t *BrowserTab) Init() {
 	t.scripts.items = []persistent.Script{}
 
-	t.components.tab_targets = FContainer.New(&ui.Fill{}, FWidget.NewLabel("No targets"))
-	t.components.tab_views = FContainer.New(&ui.Fill{}, FWidget.NewLabel("No views"))
+	t.components.tab_targets = FContainer.New(&CLayout.Fill{}, FWidget.NewLabel("No targets"))
+	t.components.tab_views = FContainer.New(&CLayout.Fill{}, FWidget.NewLabel("No views"))
 	t.components.content = FContainer.NewStack()
 
 	t.Update()
@@ -78,7 +78,7 @@ func (t *BrowserTab) CreateContent() *FContainer.TabItem {
 
 	return FContainer.NewTabItem("Browser",
 		FContainer.NewBorder(
-			nil, nil, FContainer.NewHBox(FContainer.New(&ui.MinVBox{MinWidth: 130}, sidebar), FWidget.NewSeparator()), nil,
+			nil, nil, FContainer.NewHBox(FContainer.New(&CLayout.MinVBox{MinWidth: 130}, sidebar), FWidget.NewSeparator()), nil,
 			t.components.content,
 		),
 	)

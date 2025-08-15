@@ -13,9 +13,10 @@ import (
 	FTheme "fyne.io/fyne/v2/theme"
 	FWidget "fyne.io/fyne/v2/widget"
 
-	"SQLite-GUI/internal/persistent"
-	ui "SQLite-GUI/internal/ui"
-	"SQLite-GUI/internal/utils"
+	persistent "SQLite-GUI/internal/persistent"
+	CLayout "SQLite-GUI/internal/ui/layout"
+	CWidget "SQLite-GUI/internal/ui/widgets"
+	utils "SQLite-GUI/internal/utils"
 )
 
 type ProfileTab struct {
@@ -59,7 +60,7 @@ func (t *ProfileTab) CreateContent() *FContainer.TabItem {
 
 func createProfilePanel(t *ProfileTab) *fyne.Container {
 	//# list buttons of tracked profiles
-	t.components.list_btn_profiles = FContainer.New(&ui.Fill{}, createProfileButtons(t))
+	t.components.list_btn_profiles = FContainer.New(&CLayout.Fill{}, createProfileButtons(t))
 	buttonScroll := FContainer.NewVScroll(t.components.list_btn_profiles)
 	//#
 
@@ -129,9 +130,9 @@ func updateProfileButtons(t *ProfileTab) {
 func createEditorForm(t *ProfileTab) *FWidget.Form {
 	form := FWidget.NewForm()
 
-	form.Append("Name", ui.NonValidatedEntryWithData(t.bindings.profile_name))
+	form.Append("Name", CWidget.NonValidatedEntryWithData(t.bindings.profile_name))
 	form.Append("File Location", FWidget.NewLabelWithData(t.bindings.profile_location))
-	form.Append("Note", ui.NonValidatedEntryWithData(t.bindings.profile_note))
+	form.Append("Note", CWidget.NonValidatedEntryWithData(t.bindings.profile_note))
 	t.components.list_form_targets = FContainer.NewVBox(createTargetFormList(t))
 	form.Append("Targets", t.components.list_form_targets)
 	return form
@@ -149,8 +150,8 @@ func createTargetForm(t *ProfileTab, target *persistent.Target) *fyne.Container 
 		target.Note, _ = noteBind.Get()
 	}))
 
-	entry_name := ui.NonValidatedEntryWithData(nameBind)
-	entry_note := ui.NonValidatedEntryWithData(noteBind)
+	entry_name := CWidget.NonValidatedEntryWithData(nameBind)
+	entry_note := CWidget.NonValidatedEntryWithData(noteBind)
 
 	list_files := func(list *[]string, t *ProfileTab) fyne.CanvasObject {
 		items := make([]fyne.CanvasObject, len(*list))
