@@ -120,3 +120,12 @@ func ProfilePath(profile *Profile) string {
 
 	return ""
 }
+
+func ActiveTarget() *Target {
+	prof := ActiveProfile()
+	if prof == nil || len(prof.Targets) == 0 {
+		return nil
+	}
+
+	return &prof.Targets[Data.Profiles.LastTargetUsed]
+}
