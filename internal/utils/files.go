@@ -57,6 +57,7 @@ func CleanPath(path string) string {
 	return path
 }
 
+// check if the given path exists
 func CheckPath(path string) bool {
 	path = CleanPath(path)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
