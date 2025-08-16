@@ -149,8 +149,18 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 		}
 	}
 
-	setContent := func(script persistent.Script) {
-		if layout, err := lua.LoadView(script); err == nil {
+	setContent := func(script persistent.Script) error {
+		if err := lua.LoadScript(script); err != nil {
+			t.components.content.Objects = []fyne.CanvasObject{FWidget.NewLabel(fmt.Sprintf("Failed to load the script of the selected view.\nCaused by error:\n\t %v", err))}
+			t.components.content.Refresh()
+			return fmt.Errorf("failed to load Lua script \"%s\":\n  %w", script.MetaData.Name, err)
+		}
+
+		if err := lua.LoadSources(); err != nil {
+			fmt.Println("Error loading sources for script", script.MetaData.Name, ":", err)
+		}
+
+		if layout, err := lua.LoadView(); err == nil {
 			t.components.content.Objects = []fyne.CanvasObject{layout}
 			t.components.content.Refresh()
 		} else {
@@ -158,8 +168,9 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 				t.components.content.Objects = []fyne.CanvasObject{layout}
 				t.components.content.Refresh()
 			}
-			fmt.Println("Error loading view \"", script.MetaData.Name, "\":\n  ", err)
+			return fmt.Errorf("failed to load view \"%s\":\n  %w", script.MetaData.Name, err)
 		}
+		return nil
 	}
 
 	ref_btns := make([]*FWidget.Button, len(views))
@@ -191,10 +202,12 @@ func createViewButtons(t *BrowserTab) fyne.CanvasObject {
 				} else {
 					t.scripts.items[i] = script
 					*views[i] = script
+					if err := setContent(script); err != nil {
+						fmt.Println("Error setting content for script\"", script.MetaData.Name, "\":\n  ", err)
+					}
 					fmt.Println("Re-loaded script:", script.MetaData.Name)
 				}
 
-				setContent(*views[i])
 			}
 		},
 	)
