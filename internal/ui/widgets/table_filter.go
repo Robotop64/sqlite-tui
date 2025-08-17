@@ -39,59 +39,63 @@ func NewTableModel(cols []string) TableModel {
 
 func NewFilter_Table(table *TableModel) *fyne.Container {
 	var content *fyne.Container
-	var btn_pop_vis_col, btn_pop_sort_col, btn_sort_dir *FWidget.Button
+	var btn_pop_vis_col, btn_sort_dir *FWidget.Button
 	var list_cols *FWidget.List
-	var radio_cols *FWidget.RadioGroup
+	var select_col *FWidget.Select
 
 	canvas := fyne.CurrentApp().Driver().AllWindows()[0].Canvas()
 	pop_vis_col := FWidget.NewPopUp(nil, canvas)
-	pop_sort_col := FWidget.NewPopUp(nil, canvas)
 
 	num_cols_visible := 0
 
-	create_radio_items := func(arr *int) []string {
+	create_items := func(arr *int) []string {
 		*arr = 0
 		for _, visible := range table.Filter.ColsVisible {
 			if visible {
 				*arr++
 			}
 		}
-		avail_radio_items := make([]string, 0, *arr)
+		avail_items := make([]string, 0, *arr)
 		for i, col := range table.Columns {
 			if table.Filter.ColsVisible[i] {
-				avail_radio_items = append(avail_radio_items, col)
+				avail_items = append(avail_items, col)
 			}
 		}
-		return avail_radio_items
+		return avail_items
 	}
-
+	longest_col_name := ""
+	for _, col := range table.Columns {
+		if len(col) > len(longest_col_name) {
+			longest_col_name = col
+		}
+	}
 	list_cols = FWidget.NewList(
 		func() int {
 			return len(table.Columns)
 		},
 		func() fyne.CanvasObject {
-			return FWidget.NewCheck("Placeholder", func(b bool) {})
+			return FWidget.NewCheck(longest_col_name, func(b bool) {})
 		},
 		func(i int, o fyne.CanvasObject) {
 			o.(*FWidget.Check).SetText(table.Columns[i])
 			o.(*FWidget.Check).SetChecked(table.Filter.ColsVisible[i])
 			o.(*FWidget.Check).OnChanged = func(b bool) {
 				table.Filter.ColsVisible[i] = b
-				radio_cols.Options = create_radio_items(&num_cols_visible)
-				if radio_cols.Selected == "" && num_cols_visible > 0 {
-					radio_cols.SetSelected(radio_cols.Options[0])
+				select_col.Options = create_items(&num_cols_visible)
+				if select_col.Selected == table.Columns[i] && !b && num_cols_visible > 0 {
+					select_col.SetSelectedIndex(0)
 				}
-				if radio_cols.Selected == table.Columns[i] && !b && num_cols_visible > 0 {
-					radio_cols.SetSelected(radio_cols.Options[0])
+				if num_cols_visible == 0 {
+					select_col.ClearSelected()
 				}
-				radio_cols.Refresh()
+				select_col.Refresh()
 			}
 		},
 	)
 	pop_vis_col.Content = list_cols
 	pop_vis_col.Refresh()
 
-	radio_cols = FWidget.NewRadioGroup([]string{}, func(selected string) {
+	select_col = FWidget.NewSelect([]string{}, func(selected string) {
 		for i, col := range table.Columns {
 			if col == selected {
 				table.Filter.SortByCol = i
@@ -99,13 +103,12 @@ func NewFilter_Table(table *TableModel) *fyne.Container {
 			}
 		}
 	})
-	radio_cols.Options = create_radio_items(&num_cols_visible)
-	if len(radio_cols.Options) > 0 {
-		radio_cols.Selected = radio_cols.Options[table.Filter.SortByCol]
+	select_col.PlaceHolder = "Select Column"
+	select_col.Alignment = fyne.TextAlignCenter
+	select_col.Options = create_items(&num_cols_visible)
+	if len(select_col.Options) > 0 {
+		select_col.Selected = select_col.Options[table.Filter.SortByCol]
 	}
-	radio_cols.Required = true
-	pop_sort_col.Content = FContainer.NewStack(radio_cols, FWidget.NewLabel("No columns selected"))
-	pop_sort_col.Refresh()
 
 	btn_pop_vis_col = FWidget.NewButton("Select", func() {
 		btnPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(btn_pop_vis_col)
@@ -117,19 +120,6 @@ func NewFilter_Table(table *TableModel) *fyne.Container {
 			utils.FyneToDimensions(content.Size().Subtract(fyne.NewSize(0, btn_pop_vis_col.Position().Y+btn_pop_vis_col.Size().Height))),
 		).ToFyneSize())
 		pop_vis_col.ShowAtPosition(btnPos.Add(fyne.NewPos(0, btn_pop_vis_col.Size().Height)))
-	})
-	btn_pop_sort_col = FWidget.NewButton("Select", func() {
-		if num_cols_visible == 0 {
-			pop_sort_col.Content.(*fyne.Container).Objects[0].Hide()
-			pop_sort_col.Content.(*fyne.Container).Objects[1].Show()
-			pop_sort_col.Refresh()
-		} else {
-			pop_sort_col.Content.(*fyne.Container).Objects[0].Show()
-			pop_sort_col.Content.(*fyne.Container).Objects[1].Hide()
-			pop_sort_col.Refresh()
-		}
-		btnPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(btn_pop_sort_col)
-		pop_sort_col.ShowAtPosition(btnPos.Add(fyne.NewPos(0, btn_pop_sort_col.Size().Height)))
 	})
 	btn_sort_dir = FWidget.NewButton("Asc", func() {
 		if table.Filter.SortAsc {
@@ -160,7 +150,7 @@ func NewFilter_Table(table *TableModel) *fyne.Container {
 
 	content = FContainer.New(FLayout.NewFormLayout(),
 		FWidget.NewLabel("Columns:"), btn_pop_vis_col,
-		FWidget.NewLabel("Sort by Column:"), btn_pop_sort_col,
+		FWidget.NewLabel("Sort by Column:"), select_col,
 		FWidget.NewLabel("Number of Rows:"), entry_num_rows,
 		FWidget.NewLabel("Sort Direction:"), btn_sort_dir,
 	)
