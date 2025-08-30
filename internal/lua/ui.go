@@ -166,6 +166,12 @@ WidgetSwitch:
 			case "table":
 				table := CWidget.NewTableModel([]string{"C1", "C2", "C3", "C4", "C5", "C6"})
 				component = CWidget.NewFilter_Table(&table)
+				if cfg_filter, ok := widgetTable.RawGetString("enable").(*lua.LTable); ok {
+					component = CWidget.NewFilter_Table(&table, cfg_filter)
+				} else {
+					component = CWidget.NewFilter_Table(&table, nil)
+				}
+
 			default:
 				err_msg = fmt.Sprintf("Filter widget type '%s' is not supported.", cfg_type.String())
 				break WidgetSwitch
