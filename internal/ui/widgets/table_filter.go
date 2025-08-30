@@ -1,7 +1,9 @@
 package widgets
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
@@ -57,7 +59,6 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 
 	canvas := fyne.CurrentApp().Driver().AllWindows()[0].Canvas()
 
-	// if cfg_table, ok := cfg.RawGetString("table").(lua.LBool); ok && cfg_table == lua.LTrue {
 	if utils.CheckVal(cfg.RawGetString("table"), true) {
 
 	}
@@ -79,14 +80,15 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		}
 		return avail_items
 	}
-	longest_col_name := ""
-	for _, col := range table.Columns {
-		if len(col) > len(longest_col_name) {
-			longest_col_name = col
-		}
-	}
 
 	if utils.CheckVal(cfg.RawGetString("columns"), true) {
+		longest_col_name := ""
+		for _, col := range table.Columns {
+			if len(col) > len(longest_col_name) {
+				longest_col_name = col
+			}
+		}
+
 		pop_visible_cols := FWidget.NewPopUp(nil, canvas)
 		list_cols = FWidget.NewList(
 			func() int {
@@ -185,5 +187,33 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 
 	content = FContainer.New(FLayout.NewFormLayout(), components...)
 
-	return FContainer.NewBorder(FWidget.NewLabel("Table Filter"), nil, nil, nil, content)
+	confirm := FWidget.NewButton("Done", func() {
+		fmt.Println(table.GetQuery())
+	})
+	confirm.Importance = FWidget.LowImportance
+	confirm.Refresh()
+
+	return FContainer.NewBorder(FWidget.NewLabel("Table Filter"), confirm, nil, nil, content)
+}
+
+func (model *TableModel) GetQuery() string {
+	var cols strings.Builder
+	for i, col := range model.Columns {
+		if model.Filter.ColsVisible[i] {
+			if i != 0 {
+				cols.WriteString(",")
+			}
+			cols.WriteString(col)
+		}
+	}
+
+	filter := ""
+	sort := strings.Join([]string{model.Columns[model.Filter.SortByCol], func() string {
+		if model.Filter.SortAsc {
+			return "ASC"
+		}
+		return "DESC"
+	}()}, " ")
+
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s ORDER BY %s", cols.String(), "%s", filter, sort)
 }

@@ -4,11 +4,15 @@ Type: "View"
 Description: "Widget Test"
 ---
 
-sources = {0}
+load_sources = {0}
+
+query = {
+    master = "SELECT * FROM my_table"
+}
 
 layout = LWBox{
     dir = "vertical",
-    weights = {0.75},
+    weights = {0.0},
     {
         LWBox{
             dir = "horizontal",
@@ -26,24 +30,27 @@ layout = LWBox{
                         row = false,
                     },
                     editable = true,
-                    link = "0"
+                    link = "0",
                 },
                 WSeparator{},
                 LWBox{
                     dir = "vertical",
-                    weights = {-1.0,0.0},
+                    weights = {0.0},
                     {
                         WFilter{
                             type = "table",
                             enable = {
-                                tables = false,
+                                table = false,
                                 columns = true,
-                                filter_by = true,
+                                sort_by = true,
+                                sort_dir = true,
+                                group_by = true,
+                                filter = true,
                                 limit = true,
-                                direction = true,
                                 page = true,
-                            }
-                            link = "0"
+                                query = false,
+                            },
+                            link = "0",
                         },
                     }
                 },

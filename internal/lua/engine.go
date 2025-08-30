@@ -29,6 +29,7 @@ func Init() {
 	// }
 
 	registerWidgets()
+	registerFunctions()
 }
 
 func Clean() {
@@ -38,7 +39,7 @@ func Clean() {
 }
 
 func LoadScript(script persistent.Script) error {
-	Env.SetGlobal("sources", lua.LNil)
+	Env.SetGlobal("load_sources", lua.LNil)
 	Env.SetGlobal("layout", lua.LNil)
 
 	if err := Env.DoString(string(script.Script)); err != nil {
@@ -63,10 +64,10 @@ func LoadSources() error {
 	persistent.Sources = make([]*persistent.Source, 0)
 
 	var lua_sources *lua.LTable
-	if sources := Env.GetGlobal("sources"); sources.Type() == lua.LTTable {
+	if sources := Env.GetGlobal("load_sources"); sources.Type() == lua.LTTable {
 		lua_sources = sources.(*lua.LTable)
 	} else {
-		return fmt.Errorf("sources not found in Lua script")
+		return fmt.Errorf("load_sources not found in Lua script")
 	}
 
 	for i := 1; i <= lua_sources.Len(); i++ {
