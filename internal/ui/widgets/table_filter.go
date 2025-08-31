@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	FContainer "fyne.io/fyne/v2/container"
+	FBind "fyne.io/fyne/v2/data/binding"
 	FLayout "fyne.io/fyne/v2/layout"
 	FWidget "fyne.io/fyne/v2/widget"
 	lua "github.com/yuin/gopher-lua"
@@ -20,29 +21,53 @@ type TableModel struct {
 	Filter  Filter
 }
 type Filter struct {
-	Table       string
-	ColsVisible []bool
-	Limit       int
-	Page        int
-	SortByCol   int
-	SortAsc     bool
+	Table string // which table to apply the fitler on
+
+	ColsVisible []bool         // which columns are visible
+	GroupByCol  int            // which column to group by
+	Sort        SortFilter     // sorting options
+	Values      []ValuesFilter // which values to filter on which columns
+
+	Limit int // how many rows should be displayed per page
+	Page  int // which page to display
+}
+type SortFilter struct {
+	ByCol int
+	Asc   bool
+}
+type ValuesFilter struct {
+	ByCol int
+	Val   string
 }
 
 func NewTableModel(cols []string) TableModel {
 	return TableModel{
 		Columns: cols,
 		Filter: Filter{
+			Table:       "",
 			ColsVisible: make([]bool, len(cols)),
-			Limit:       0,
-			Page:        1,
-			SortByCol:   0,
-			SortAsc:     true,
+			Sort: SortFilter{
+				ByCol: 0,
+				Asc:   true,
+			},
+			GroupByCol: 0,
+			Values:     make([]ValuesFilter, 0),
+			Limit:      50,
+			Page:       1,
 		},
 	}
 }
 
 func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
-	var num_elements int
+	var content *fyne.Container
+	var num_elements int = 0
+	var num_cols_visible int = 0
+	var last_checked int = -1
+
+	cols_visible := make([]string, 0)
+	bind_cols_visible := FBind.BindStringList(&cols_visible)
+
+	//calculate required number of editor elements
 	if cfg != nil {
 		cfg.ForEach(func(k, v lua.LValue) {
 			if b, ok := v.(lua.LBool); ok && b == lua.LTrue {
@@ -51,20 +76,9 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		})
 	}
 	components := make([]fyne.CanvasObject, 0, num_elements*2)
-	var content *fyne.Container
-
-	var btn_pop_visible_cols, btn_sort_dir *FWidget.Button
-	var list_cols *FWidget.List
-	var select_col *FWidget.Select
-
 	canvas := fyne.CurrentApp().Driver().AllWindows()[0].Canvas()
 
-	if utils.CheckVal(cfg.RawGetString("table"), true) {
-
-	}
-
-	num_cols_visible := 0
-
+	// set number of visible columns and create items
 	create_items := func(arr *int) []string {
 		*arr = 0
 		for _, visible := range table.Filter.ColsVisible {
@@ -81,6 +95,12 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		return avail_items
 	}
 
+	// add the elements to the widget container, if the lua flags are set to true
+
+	if utils.CheckVal(cfg.RawGetString("table"), true) {
+
+	}
+
 	if utils.CheckVal(cfg.RawGetString("columns"), true) {
 		longest_col_name := ""
 		for _, col := range table.Columns {
@@ -90,7 +110,7 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		}
 
 		pop_visible_cols := FWidget.NewPopUp(nil, canvas)
-		list_cols = FWidget.NewList(
+		list_cols := FWidget.NewList(
 			func() int {
 				return len(table.Columns)
 			},
@@ -102,20 +122,14 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 				o.(*FWidget.Check).SetChecked(table.Filter.ColsVisible[i])
 				o.(*FWidget.Check).OnChanged = func(b bool) {
 					table.Filter.ColsVisible[i] = b
-					select_col.Options = create_items(&num_cols_visible)
-					if select_col.Selected == table.Columns[i] && !b && num_cols_visible > 0 {
-						select_col.SetSelectedIndex(0)
-					}
-					if num_cols_visible == 0 {
-						select_col.ClearSelected()
-					}
-					select_col.Refresh()
+					bind_cols_visible.Set(create_items(&num_cols_visible))
+					last_checked = i
 				}
 			},
 		)
 		pop_visible_cols.Content = list_cols
 		pop_visible_cols.Refresh()
-
+		var btn_pop_visible_cols *FWidget.Button
 		btn_pop_visible_cols = FWidget.NewButton("Select", func() {
 			btnPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(btn_pop_visible_cols)
 			pop_visible_cols.Resize(utils.FitSize(
@@ -132,31 +146,41 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 	}
 
 	if utils.CheckVal(cfg.RawGetString("sort_by"), true) {
-		select_col = FWidget.NewSelect([]string{}, func(selected string) {
+		select_col := FWidget.NewSelect([]string{}, func(selected string) {
 			for i, col := range table.Columns {
 				if col == selected {
-					table.Filter.SortByCol = i
+					table.Filter.Sort.ByCol = i
 					break
 				}
 			}
 		})
 		select_col.PlaceHolder = "Select Column"
 		select_col.Alignment = fyne.TextAlignCenter
-		select_col.Options = create_items(&num_cols_visible)
 		if len(select_col.Options) > 0 {
-			select_col.Selected = select_col.Options[table.Filter.SortByCol]
+			select_col.Selected = select_col.Options[table.Filter.Sort.ByCol]
 		}
+		bind_cols_visible.AddListener(FBind.NewDataListener(func() {
+			select_col.Options = cols_visible
+			if last_checked >= 0 && select_col.Selected == table.Columns[last_checked] && !table.Filter.ColsVisible[last_checked] && num_cols_visible > 0 {
+				select_col.SetSelectedIndex(0)
+			}
+			if num_cols_visible == 0 {
+				select_col.ClearSelected()
+			}
+			select_col.Refresh()
+		}))
 
 		components = append(components, FWidget.NewLabel("Sort by Column:"), select_col)
 	}
 
 	if utils.CheckVal(cfg.RawGetString("sort_dir"), true) {
+		var btn_sort_dir *FWidget.Button
 		btn_sort_dir = FWidget.NewButton("Asc", func() {
-			if table.Filter.SortAsc {
-				table.Filter.SortAsc = false
+			if table.Filter.Sort.Asc {
+				table.Filter.Sort.Asc = false
 				btn_sort_dir.SetText("Desc")
 			} else {
-				table.Filter.SortAsc = true
+				table.Filter.Sort.Asc = true
 				btn_sort_dir.SetText("Asc")
 			}
 		})
@@ -164,17 +188,51 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		components = append(components, FWidget.NewLabel("Sort Direction:"), btn_sort_dir)
 	}
 
+	if utils.CheckVal(cfg.RawGetString("group_by"), true) {
+		select_col_group := FWidget.NewSelect([]string{}, func(selected string) {
+			for i, col := range table.Columns {
+				if col == selected {
+					table.Filter.GroupByCol = i
+					break
+				}
+			}
+		})
+		select_col_group.PlaceHolder = "Select Column"
+		select_col_group.Alignment = fyne.TextAlignCenter
+		if len(select_col_group.Options) > 0 {
+			select_col_group.Selected = select_col_group.Options[table.Filter.GroupByCol]
+		}
+		bind_cols_visible.AddListener(FBind.NewDataListener(func() {
+			select_col_group.Options = cols_visible
+			if last_checked >= 0 && select_col_group.Selected == table.Columns[last_checked] && !table.Filter.ColsVisible[last_checked] && num_cols_visible > 0 {
+				select_col_group.SetSelectedIndex(0)
+			}
+			if num_cols_visible == 0 {
+				select_col_group.ClearSelected()
+			}
+			select_col_group.Refresh()
+		}))
+
+		components = append(components, FWidget.NewLabel("Group by Column:"), select_col_group)
+	}
+
+	if utils.CheckVal(cfg.RawGetString("filter"), true) {
+
+	}
+
 	if utils.CheckVal(cfg.RawGetString("limit"), true) {
-		entry_num_rows := NewNumericalEntry()
 		entry_num_rows := NewNumericalEntry(false)
 		entry_num_rows.SetText(strconv.Itoa(table.Filter.Limit))
-		entry_num_rows.OnSubmitted = func(val string) {
+		entry_num_rows.OnChanged = func(val string) {
 			if val == "" {
-				entry_num_rows.SetText(strconv.Itoa(table.Filter.Limit))
+				// entry_num_rows.SetText(strconv.Itoa(table.Filter.Limit))
 				return
 			}
-			table.Filter.Limit, _ = strconv.Atoi(val)
+			if ival, err := strconv.Atoi(val); err == nil {
+				table.Filter.Limit = ival
+			}
 		}
+		// entry_num_rows.OnChanged = entry_num_rows.OnSubmitted
 		entry_num_rows.OnFocusLost = func() {
 			if entry_num_rows.Text != "" {
 				table.Filter.Limit, _ = strconv.Atoi(entry_num_rows.Text)
@@ -184,6 +242,33 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 		}
 
 		components = append(components, FWidget.NewLabel("Row Limit:"), entry_num_rows)
+	}
+
+	if utils.CheckVal(cfg.RawGetString("page"), true) {
+		entry_page := NewNumericalEntry(false)
+		entry_page.SetText(strconv.Itoa(table.Filter.Page))
+		entry_page.OnChanged = func(val string) {
+			if val == "" {
+				// entry_page.SetText(strconv.Itoa(table.Filter.Page))
+				return
+			}
+			if ival, err := strconv.Atoi(val); err == nil {
+				if ival < 1 {
+					entry_page.SetText("1")
+					return
+				}
+				table.Filter.Page = ival
+			}
+		}
+		entry_page.OnFocusLost = func() {
+			if entry_page.Text != "" {
+				table.Filter.Page, _ = strconv.Atoi(entry_page.Text)
+			} else {
+				entry_page.SetText(strconv.Itoa(table.Filter.Page))
+			}
+		}
+
+		components = append(components, FWidget.NewLabel("Page:"), entry_page)
 	}
 
 	content = FContainer.New(FLayout.NewFormLayout(), components...)
@@ -209,12 +294,14 @@ func (model *TableModel) GetQuery() string {
 	}
 
 	filter := ""
-	sort := strings.Join([]string{model.Columns[model.Filter.SortByCol], func() string {
-		if model.Filter.SortAsc {
+	sort := strings.Join([]string{model.Columns[model.Filter.Sort.ByCol], func() string {
+		if model.Filter.Sort.Asc {
 			return "ASC"
 		}
 		return "DESC"
 	}()}, " ")
 
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s ORDER BY %s", cols.String(), "%s", filter, sort)
+	page := (model.Filter.Page - 1) * model.Filter.Limit
+
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s ORDER BY %s LIMIT %d OFFSET %d", cols.String(), "%s", filter, sort, model.Filter.Limit, page)
 }
