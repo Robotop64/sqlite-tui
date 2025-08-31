@@ -166,6 +166,7 @@ func NewFilter_Table(table *TableModel, cfg *lua.LTable) *fyne.Container {
 
 	if utils.CheckVal(cfg.RawGetString("limit"), true) {
 		entry_num_rows := NewNumericalEntry()
+		entry_num_rows := NewNumericalEntry(false)
 		entry_num_rows.SetText(strconv.Itoa(table.Filter.Limit))
 		entry_num_rows.OnSubmitted = func(val string) {
 			if val == "" {
