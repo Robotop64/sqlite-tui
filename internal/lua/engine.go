@@ -29,7 +29,6 @@ func Init() {
 	// }
 
 	registerWidgets()
-	registerFunctions()
 }
 
 func Clean() {
