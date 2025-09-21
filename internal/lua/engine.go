@@ -28,6 +28,7 @@ func Init() {
 	// 	panic(err)
 	// }
 
+	registerFunctions()
 	registerWidgets()
 }
 
@@ -50,10 +51,10 @@ func LoadScript(script persistent.Script) error {
 func LoadView() (fyne.CanvasObject, error) {
 	var lua_layout *lua.LTable
 
-	if layout := Env.GetGlobal("layout"); layout.Type() == lua.LTTable {
+	if layout := Env.GetGlobal("Layout"); layout.Type() == lua.LTTable {
 		lua_layout = layout.(*lua.LTable)
 	} else {
-		return FWidget.NewLabel("The selected view does not contain a layout."), fmt.Errorf("layout not found in Lua script")
+		return FWidget.NewLabel("The selected view does not contain a 'Layout' (variable)."), fmt.Errorf("layout not found in Lua script")
 	}
 
 	return buildLayout(Env, lua_layout), nil
@@ -63,10 +64,10 @@ func LoadSources() error {
 	persistent.Sources = make([]*persistent.Source, 0)
 
 	var lua_sources *lua.LTable
-	if sources := Env.GetGlobal("load_sources"); sources.Type() == lua.LTTable {
+	if sources := Env.GetGlobal("LoadSources"); sources.Type() == lua.LTTable {
 		lua_sources = sources.(*lua.LTable)
 	} else {
-		return fmt.Errorf("load_sources not found in Lua script")
+		return fmt.Errorf("'LoadSources' not found in Lua script")
 	}
 
 	for i := 1; i <= lua_sources.Len(); i++ {
